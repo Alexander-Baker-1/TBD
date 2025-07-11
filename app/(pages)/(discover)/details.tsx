@@ -1,10 +1,9 @@
-import { Link } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
-export default function NotFoundScreen() {
+export default function DetailsScreen() {
   return (
     <View style={styles.container}>
-      <Link href="/">Go to home screen</Link>
+      <Text>Details</Text>
     </View>
   );
 }
