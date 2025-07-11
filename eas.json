@@ -16,8 +16,14 @@
     }
   },
   "submit": {
+    "production": {}
+  },
+  "update": {
+    "development": {
+      "channel": "development"
+    },
     "production": {
-      "distribution": "store"
+      "channel": "production"
     }
   }
 }
