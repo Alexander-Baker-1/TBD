@@ -1,11 +1,18 @@
 import {useContext, createContext, useState} from 'react';
-import {Text, SafeAreaView} from 'react-native'
+import {Text } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
-const AuthContext = createContext();
+
+const AuthContext = createContext({
+    session: false,
+    user: null,
+    login: () => {},
+    logout: () => {}
+});
 
 const AuthProvider = ({children}) => {
     const [loading, setLoading] = useState(false)
-    const [session, setSession] = useState(false)
+    const [session, setSession] = useState(true)
     const [user, setUser] = useState(false)
     const login = async () => {}
     const logout = async () => {}
@@ -16,7 +23,7 @@ const AuthProvider = ({children}) => {
         {
         loading ? (
             <SafeAreaView>
-                <Text>Loading..</Text>
+                <Text>Loading...</Text>
                 </SafeAreaView>
          ) : (
             children
@@ -25,6 +32,8 @@ const AuthProvider = ({children}) => {
     )
 }
 
-const useAuth = () => {return useContext(AuthContext)}
+const useAuth = () => {
+    return useContext(AuthContext)
+}
 
 export {useAuth, AuthContext, AuthProvider}
