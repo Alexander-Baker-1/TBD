@@ -18,11 +18,22 @@ jobs:
           node-version: '20'
           cache: 'npm'
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies with legacy peer deps
+        run: npm ci --legacy-peer-deps
       
       - name: Check code quality
         run: echo "Code quality checks passed"
+      
+      - name: Run unit tests only (skip integration)
+        run: npm run test:ci
+        if: always()
+      
+      - name: Integration tests info
+        run: |
+          echo "⚠️  Integration tests skipped in CI"
+          echo "Integration tests require local Appwrite server"
+          echo "Run 'npm run test:integration' locally to test auth flow"
+        if: always()
 
   update-dev:
     runs-on: ubuntu-latest
@@ -44,8 +55,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies with legacy peer deps
+        run: npm ci --legacy-peer-deps
       
       - name: Publish development update
         run: eas update --channel=development --message="Development update from GitHub Actions"
@@ -70,8 +81,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies with legacy peer deps
+        run: npm ci --legacy-peer-deps
       
       - name: Publish production update
         run: eas update --channel=production --message="Production update from GitHub Actions"
