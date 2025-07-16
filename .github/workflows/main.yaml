@@ -23,6 +23,18 @@ jobs:
       
       - name: Check code quality
         run: echo "Code quality checks passed"
+      
+      - name: Run unit tests
+        run: npm test -- --coverage --watchAll=false
+        if: always()
+      
+      # Skip integration tests in CI since they require local Appwrite
+      - name: Integration tests info
+        run: |
+          echo "⚠️  Integration tests skipped in CI"
+          echo "Integration tests require local Appwrite server"
+          echo "Run 'npm run test:integration' locally to test auth flow"
+        if: always()
 
   update-dev:
     runs-on: ubuntu-latest
