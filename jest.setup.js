@@ -1,19 +1,9 @@
-const dotenv = require('dotenv');
-
-// Load environment variables from .env file
-const result = dotenv.config();
-
-if (result.error) {
-  console.error('Error loading .env file:', result.error);
-} else {
-  console.log('Environment variables loaded successfully');
+// Try to load dotenv, but don't fail if it's not available
+try {
+  require('dotenv').config();
+} catch (error) {
+  // Ignore - dotenv not available in CI
 }
 
-console.log('Environment Variables Loaded:');
-console.log('EXPO_PUBLIC_APPWRITE_ENDPOINT:', process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT);
-console.log('EXPO_PUBLIC_APPWRITE_PROJECT_ID:', process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID);
-console.log('APPWRITE_TEST_ENDPOINT:', process.env.APPWRITE_TEST_ENDPOINT);
-console.log('APPWRITE_TEST_PROJECT_ID:', process.env.APPWRITE_TEST_PROJECT_ID);
-
-// Configure Jest for async operations
+// Set timeout for integration tests
 jest.setTimeout(60000);
