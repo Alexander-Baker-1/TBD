@@ -6,6 +6,9 @@ export default {
     slug: "TBD", 
     scheme: "tbd",
     version: "1.0.0",
+    plugins: [
+        "expo-router",
+    ],
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     userInterfaceStyle: "light",
