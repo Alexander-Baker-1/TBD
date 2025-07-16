@@ -37,6 +37,9 @@ export default {
       EXPO_PUBLIC_APPWRITE_ENDPOINT: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
       EXPO_PUBLIC_APPWRITE_PROJECT_ID: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
       EXPO_PUBLIC_APPWRITE_PACKAGE_NAME: process.env.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME,
+      eas: {
+        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID
+      }
     }
   }
 };
