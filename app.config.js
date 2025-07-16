@@ -3,11 +3,11 @@ import 'dotenv/config';
 export default {
   expo: {
     name: "TBD",
-    slug: "TBD", 
+    slug: "TBD",
     scheme: "tbd",
     version: "1.0.0",
     plugins: [
-        "expo-router",
+      "expo-router",
     ],
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -21,17 +21,24 @@ export default {
       "**/*"
     ],
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      runtimeVersion: {
+        policy: "appVersion"
+      }
     },
     android: {
-        package: process.env.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME,
+      package: process.env.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME,
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff"
-      }
+      },
+      runtimeVersion: "1.0.0"
     },
     web: {
       favicon: "./assets/images/favicon.png"
+    },
+    updates: {
+      url: `https://u.expo.dev/${process.env.EXPO_PUBLIC_EAS_PROJECT_ID}`
     },
     extra: {
       EXPO_PUBLIC_APPWRITE_ENDPOINT: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
