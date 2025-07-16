@@ -60,6 +60,9 @@ jobs:
       - name: Install dependencies with legacy peer deps
         run: npm ci --legacy-peer-deps
       
+      - name: Install expo-updates with legacy peer deps
+        run: npm install expo-updates --legacy-peer-deps
+
       - name: Publish development update
         run: eas update --channel=development --message="Development update from GitHub Actions"
 
@@ -85,8 +88,11 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       
-      - name: Install dependencies with legacy peer deps
-        run: npm ci --legacy-peer-deps
+      - name: Install dependencies with legacy peer deps (force)
+        run: npm install --legacy-peer-deps
+
+      - name: Install expo-updates with legacy peer deps
+        run: npm install expo-updates --legacy-peer-deps
       
       - name: Publish production update
         run: eas update --channel=production --message="Production update from GitHub Actions"
