@@ -1,9 +1,10 @@
 import 'dotenv/config';
+dotenv.config();
 
 export default {
   expo: {
     name: process.env.EXPO_PUBLIC_APP_NAME,
-    slug: "TBD",
+    slug: "process.env.EXPO_PUBLIC_APP_SLUG",
     scheme: process.env.EXPO_PUBLIC_APP_SCHEME,
     version: process.env.EXPO_PUBLIC_APP_VERSION,
     orientation: "portrait",
