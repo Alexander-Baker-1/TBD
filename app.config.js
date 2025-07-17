@@ -1,8 +1,16 @@
 if (process.env.CI) {
   console.log("CI detected. Skipping dotenv config.");
+  
+  // Debug logging for CI
+  console.log("=== Environment Variables Debug ===");
+  console.log("EXPO_PUBLIC_APPWRITE_PACKAGE_NAME:", process.env.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME ? "SET" : "MISSING");
+  console.log("EXPO_PUBLIC_EAS_PROJECT_ID:", process.env.EXPO_PUBLIC_EAS_PROJECT_ID ? "SET" : "MISSING");
+  console.log("EXPO_PUBLIC_APP_NAME:", process.env.EXPO_PUBLIC_APP_NAME ? "SET" : "MISSING");
+  console.log("=====================================");
 } else {
   require('dotenv').config();
 }
+
 export default {
   expo: {
     name: process.env.EXPO_PUBLIC_APP_NAME,
