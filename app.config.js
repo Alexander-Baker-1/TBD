@@ -3,7 +3,7 @@ import 'dotenv/config';
 export default {
   expo: {
     name: process.env.EXPO_PUBLIC_APP_NAME,
-    slug: process.env.EXPO_PUBLIC_APP_SLUG,
+    slug: "TBD",
     scheme: process.env.EXPO_PUBLIC_APP_SCHEME,
     version: process.env.EXPO_PUBLIC_APP_VERSION,
     orientation: "portrait",
