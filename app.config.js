@@ -1,5 +1,8 @@
-require('dotenv').config();
-
+if (process.env.CI) {
+  console.log("CI detected. Skipping dotenv config.");
+} else {
+  require('dotenv').config();
+}
 export default {
   expo: {
     name: process.env.EXPO_PUBLIC_APP_NAME,
