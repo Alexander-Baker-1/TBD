@@ -3,12 +3,29 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/AuthContext.js';
 
+// Define the user type for TypeScript
+interface AppwriteUser {
+  $id: string;
+  name?: string;
+  email: string;
+  emailVerification: boolean;
+  status: boolean;
+  prefs: Record<string, any>;
+  registration: string;
+  passwordUpdate: string;
+  $createdAt: string;
+  $updatedAt: string;
+}
+
 export default function HomeScreen() {
   const { logout, user } = useAuth();
+  
+  // Type assertion for the user object
+  const typedUser = user as AppwriteUser | null;
 
   const mockTracks = [
-    { id: 1, title: "Red", artist: user?.name || "Artist Name", likes: "100k", listens: "215k" },
-    { id: 2, title: "Red", artist: user?.name || "Artist Name", likes: "100k", listens: "215k" },
+    { id: 1, title: "Red", artist: typedUser?.name || typedUser?.email || "Artist Name", likes: "100k", listens: "215k" },
+    { id: 2, title: "Red", artist: typedUser?.name || typedUser?.email || "Artist Name", likes: "100k", listens: "215k" },
   ];
 
   const socialPlatforms = [
@@ -39,7 +56,7 @@ export default function HomeScreen() {
               />
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.username}>{user?.name || "User Name"}</Text>
+              <Text style={styles.username}>{typedUser?.name || typedUser?.email || "User Name"}</Text>
               <TouchableOpacity style={styles.bioButton}>
                 <Text style={styles.bioText}>Bio</Text>
               </TouchableOpacity>
