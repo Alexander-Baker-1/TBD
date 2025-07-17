@@ -9,6 +9,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_APP_NAME: ${{ secrets.EXPO_PUBLIC_APP_NAME }}
+      EXPO_PUBLIC_APP_SLUG: ${{ secrets.EXPO_PUBLIC_APP_SLUG }}
+      EXPO_PUBLIC_APP_SCHEME: ${{ secrets.EXPO_PUBLIC_APP_SCHEME }}
+      EXPO_PUBLIC_APP_VERSION: ${{ secrets.EXPO_PUBLIC_APP_VERSION }}
+      EXPO_PUBLIC_EXPO_OWNER: ${{ secrets.EXPO_PUBLIC_EXPO_OWNER }}
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}
+      EXPO_PUBLIC_APPWRITE_ENDPOINT: ${{ secrets.EXPO_PUBLIC_APPWRITE_ENDPOINT }}
+      EXPO_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_APPWRITE_PROJECT_ID }}
+      EXPO_PUBLIC_APPWRITE_PACKAGE_NAME: ${{ secrets.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME }}
     steps:
       - uses: actions/checkout@v4
       
@@ -30,7 +40,7 @@ jobs:
       
       - name: Integration tests info
         run: |
-          echo "⚠️  Integration tests skipped in CI"
+          echo "Integration tests skipped in CI"
           echo "Integration tests require local Appwrite server"
           echo "Run 'npm run test:integration' locally to test auth flow"
         if: always()
