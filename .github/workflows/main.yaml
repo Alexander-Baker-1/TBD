@@ -71,7 +71,11 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_EAS_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_EAS_PROJECT_ID }}
+      EXPO_PUBLIC_APPWRITE_ENDPOINT: ${{ secrets.EXPO_PUBLIC_APPWRITE_ENDPOINT }}
+      EXPO_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_APPWRITE_PROJECT_ID }}
+      EXPO_PUBLIC_APPWRITE_PACKAGE_NAME: ${{ secrets.EXPO_PUBLIC_APPWRITE_PACKAGE_NAME }}
     steps:
       - uses: actions/checkout@v4
       
