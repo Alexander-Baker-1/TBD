@@ -1,11 +1,21 @@
-// Try to load dotenv, but don't fail if it's not available
-try {
-  require('dotenv').config();
-} catch (error) {
-  // Ignore - dotenv not available in CI
+// Prevent "Cannot redefine property: window"
+if (typeof window === 'undefined') {
+  global.window = global;
 }
 
-// Mock app config to prevent config validation errors in CI
+// Polyfill fetch if missing
+if (typeof fetch === 'undefined') {
+  require('whatwg-fetch');
+}
+
+// Gracefully load dotenv in local envs (skip in CI)
+try {
+  require('dotenv').config();
+} catch {
+  // Ignore if dotenv is unavailable (like in CI)
+}
+
+// Mock app.config.js to prevent Expo config validation failures
 jest.mock('./app.config.js', () => ({
   __esModule: true,
   default: {
@@ -22,31 +32,31 @@ jest.mock('./app.config.js', () => ({
         runtimeVersion: '1.0.0',
         adaptiveIcon: {
           foregroundImage: './assets/images/adaptive-icon.png',
-          backgroundColor: '#ffffff'
-        }
+          backgroundColor: '#ffffff',
+        },
       },
       ios: {
         supportsTablet: true,
         runtimeVersion: {
-          policy: 'appVersion'
-        }
+          policy: 'appVersion',
+        },
       },
       web: {
         favicon: './assets/images/favicon.png',
         bundler: 'metro',
-        output: 'static'
+        output: 'static',
       },
       extra: {
         eas: {
-          projectId: 'test-project-id'
-        }
+          projectId: 'test-project-id',
+        },
       },
-      owner: 'test-owner'
-    }
-  }
+      owner: 'test-owner',
+    },
+  },
 }));
 
-// Mock expo modules that might cause issues in tests
+// Mock Expo modules that crash in test environments
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
@@ -54,10 +64,10 @@ jest.mock('expo-constants', () => ({
     appOwnership: 'standalone',
     expoConfig: {
       name: 'Test App',
-      slug: 'test-app'
-    }
-  }
+      slug: 'test-app',
+    },
+  },
 }));
 
-// Set timeout for integration tests
+// Increase timeout for long integration tests
 jest.setTimeout(60000);
