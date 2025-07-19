@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const navigateToMusicGenerator = () => {
-    router.push('/AIMusicGenerator' as any);
+  router.push('/AIMusicGenerator' as any);
   };
 
   return (
