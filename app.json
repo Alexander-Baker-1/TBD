@@ -19,6 +19,9 @@
       "edgeToEdgeEnabled": true,
       "package": "com.alexbaker24.TBD"
     },
+    "ios": {
+      "bundleIdentifier": "com.elijah.TBD"
+      },
     "web": {
       "bundler": "metro",
       "output": "static",
