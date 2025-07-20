@@ -21,49 +21,90 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { register, login } = useAuth();
   const router = useRouter();
 
   const validateForm = () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Name is required');
+      setError('Name is required');
       return false;
     }
     if (!email.trim()) {
-      Alert.alert('Error', 'Email is required');
+      setError('Email is required');
       return false;
     }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      setError('Password must be at least 8 characters');
       return false;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      setError('Passwords do not match');
       return false;
     }
     return true;
   };
 
   const handleRegister = async () => {
+    setError(''); // Clear previous errors
+    
     if (!validateForm()) return;
     
     setLoading(true);
     try {
-      const response = await account.create('unique()', email, password, name);
+      const response = await account.create('unique()', email.toLowerCase().trim(), password, name.trim());
       
       // Wait a moment for account to be fully ready
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Use the AuthContext login function instead of direct session creation
-      await login({ email, password });
+      await login({ email: email.toLowerCase().trim(), password });
       
       Alert.alert('Success', 'Registration completed successfully!');
       
     } catch (error: any) {
-      Alert.alert('Registration Error', error.message || 'An error occurred during registration');
+      console.error('Registration error:', error);
+      
+      // Handle specific error messages with user-friendly text
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      const errorString = error?.message || error?.toString() || '';
+      
+      if (errorString.includes('user_already_exists') || 
+          errorString.includes('User with the same email already exists') ||
+          errorString.includes('already exists') ||
+          errorString.includes('duplicate')) {
+        errorMessage = 'Email is unavailable. Please try a different one.';
+      } else if (errorString.includes('Invalid `email` param') || 
+                 errorString.includes('valid email address')) {
+        errorMessage = 'Please enter a valid email address';
+      } else if (errorString.includes('Invalid `password` param') || 
+                 errorString.includes('Password must be between')) {
+        errorMessage = 'Password must be between 8 and 256 characters';
+      } else if (errorString.includes('Invalid `name` param')) {
+        errorMessage = 'Please enter a valid name';
+      } else if (errorString.includes('Rate limit')) {
+        errorMessage = 'Too many attempts. Please wait a moment and try again.';
+      } else if (errorString.includes('Network') || errorString.includes('network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearError = () => {
+    setError('');
   };
 
   return (
@@ -77,12 +118,22 @@ export default function RegisterScreen() {
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Sign up to get started</Text>
 
+            {/* Error Message Display */}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, error && styles.inputError]}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text);
+                  clearError();
+                }}
                 placeholder="Enter your full name"
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -92,9 +143,12 @@ export default function RegisterScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, error && styles.inputError]}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  clearError();
+                }}
                 placeholder="Enter your email"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -105,9 +159,12 @@ export default function RegisterScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, error && styles.inputError]}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  clearError();
+                }}
                 placeholder="Enter your password"
                 secureTextEntry
                 autoCapitalize="none"
@@ -117,9 +174,12 @@ export default function RegisterScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Confirm Password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, error && styles.inputError]}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  clearError();
+                }}
                 placeholder="Confirm your password"
                 secureTextEntry
                 autoCapitalize="none"
@@ -188,6 +248,20 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     color: '#666',
   },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
   inputContainer: {
     marginBottom: 20,
   },
@@ -204,6 +278,10 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     backgroundColor: '#fafafa',
+  },
+  inputError: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fef2f2',
   },
   button: {
     backgroundColor: '#007AFF',
