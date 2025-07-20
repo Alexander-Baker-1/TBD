@@ -17,6 +17,7 @@ import { Stack, useRouter } from 'expo-router';
 import { fileStorageService } from './services/FileStorageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WebhookReaderService from './services/WebhookReaderService';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function AIMusicGenerator() {
   const router = useRouter();
@@ -879,27 +880,28 @@ This track would be generated using Suno AI's professional music generation tech
   };
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'AI Music Generator',
-          headerStyle: { backgroundColor: '#6366f1' },
-          headerTintColor: '#fff',
-          headerTitleStyle: { fontWeight: 'bold' },
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{ marginLeft: -8, padding: 8 }}
-            >
-              <Ionicons name="arrow-back" size={24} color="white" />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
+  <>
+    <Stack.Screen
+      options={{
+        title: 'AI Music Generator',
+        headerStyle: { backgroundColor: '#6366f1' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: 'bold' },
+        headerLeft: () => (
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginLeft: -8, padding: 8 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+        ),
+      }}
+    />
+    <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
 
-      <ScrollView style={styles.container}>
-        {/* Back Button */}
+    <ScrollView style={styles.container}>
+      {/* Updated Back Button with SafeAreaView */}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#f5f5f5' }}>
         <View style={styles.backButtonContainer}>
           <TouchableOpacity
             style={styles.backButtonStyle}
@@ -909,6 +911,7 @@ This track would be generated using Suno AI's professional music generation tech
             <Text style={styles.backButtonText}>Back to Collaborate</Text>
           </TouchableOpacity>
         </View>
+      </SafeAreaView>
 
         <View style={styles.header}>
           <Text style={styles.title}>KIE.ai Suno Music</Text>
@@ -1414,7 +1417,7 @@ const styles = StyleSheet.create({
   },
   backButtonContainer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 10, // Reduced since SafeAreaView handles the top spacing
     paddingBottom: 5,
     backgroundColor: '#f5f5f5',
   },
