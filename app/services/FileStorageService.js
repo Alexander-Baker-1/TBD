@@ -3,57 +3,75 @@ import * as FileSystem from 'expo-file-system';
 
 class FileStorageService {
   constructor() {
-    this.filePath = `${FileSystem.documentDirectory}music_library.json`;
+    this.musicFilePath = `${FileSystem.documentDirectory}music_library.json`;
+    this.profileFilePath = `${FileSystem.documentDirectory}user_profile.json`;
     this.initStorage();
   }
 
   async initStorage() {
     try {
-      // Check if the file exists, if not create it with empty array
-      const fileInfo = await FileSystem.getInfoAsync(this.filePath);
-      if (!fileInfo.exists) {
-        await this.saveToFile([]);
+      // Initialize music library
+      const musicFileInfo = await FileSystem.getInfoAsync(this.musicFilePath);
+      if (!musicFileInfo.exists) {
+        await this.saveToFile([], 'music');
         console.log('Music library file created');
       } else {
         console.log('Music library file exists');
+      }
+
+      // Initialize profile data
+      const profileFileInfo = await FileSystem.getInfoAsync(this.profileFilePath);
+      if (!profileFileInfo.exists) {
+        await this.saveToFile({
+          bio: "Passionate music producer and AI enthusiast. Love creating ambient soundscapes and electronic beats. Always looking to collaborate with fellow artists!",
+          skills: ["Electronic Music", "Ambient", "AI Music", "Mixing", "Sound Design"],
+          socialLinks: {},
+          preferences: {}
+        }, 'profile');
+        console.log('Profile file created');
+      } else {
+        console.log('Profile file exists');
       }
     } catch (error) {
       console.error('Error initializing storage:', error);
     }
   }
 
-  async saveToFile(songs) {
+  async saveToFile(data, type = 'music') {
     try {
-      const jsonString = JSON.stringify(songs, null, 2);
-      await FileSystem.writeAsStringAsync(this.filePath, jsonString);
+      const filePath = type === 'music' ? this.musicFilePath : this.profileFilePath;
+      const jsonString = JSON.stringify(data, null, 2);
+      await FileSystem.writeAsStringAsync(filePath, jsonString);
       return true;
     } catch (error) {
-      console.error('Error saving to file:', error);
+      console.error(`Error saving ${type} to file:`, error);
       throw error;
     }
   }
 
-  async loadFromFile() {
+  async loadFromFile(type = 'music') {
     try {
-      const fileInfo = await FileSystem.getInfoAsync(this.filePath);
+      const filePath = type === 'music' ? this.musicFilePath : this.profileFilePath;
+      const fileInfo = await FileSystem.getInfoAsync(filePath);
       if (!fileInfo.exists) {
-        return [];
+        return type === 'music' ? [] : {};
       }
       
-      const jsonString = await FileSystem.readAsStringAsync(this.filePath);
-      const songs = JSON.parse(jsonString);
-      return Array.isArray(songs) ? songs : [];
+      const jsonString = await FileSystem.readAsStringAsync(filePath);
+      const data = JSON.parse(jsonString);
+      return type === 'music' ? (Array.isArray(data) ? data : []) : data;
     } catch (error) {
-      console.error('Error loading from file:', error);
-      return [];
+      console.error(`Error loading ${type} from file:`, error);
+      return type === 'music' ? [] : {};
     }
   }
 
+  // Music-related methods
   async addSong(song) {
     try {
-      const existingSongs = await this.loadFromFile();
+      const existingSongs = await this.loadFromFile('music');
       const newSongs = [song, ...existingSongs];
-      await this.saveToFile(newSongs);
+      await this.saveToFile(newSongs, 'music');
       console.log('Song added successfully:', song.title);
       return true;
     } catch (error) {
@@ -64,7 +82,7 @@ class FileStorageService {
 
   async getAllSongs() {
     try {
-      const songs = await this.loadFromFile();
+      const songs = await this.loadFromFile('music');
       // Sort by creation date (newest first)
       return songs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     } catch (error) {
@@ -75,9 +93,9 @@ class FileStorageService {
 
   async deleteSong(songId) {
     try {
-      const existingSongs = await this.loadFromFile();
+      const existingSongs = await this.loadFromFile('music');
       const filteredSongs = existingSongs.filter(song => song.id !== songId);
-      await this.saveToFile(filteredSongs);
+      await this.saveToFile(filteredSongs, 'music');
       console.log('Song deleted successfully:', songId);
       return true;
     } catch (error) {
@@ -88,7 +106,7 @@ class FileStorageService {
 
   async clearAllSongs() {
     try {
-      await this.saveToFile([]);
+      await this.saveToFile([], 'music');
       console.log('All songs cleared successfully');
       return true;
     } catch (error) {
@@ -99,7 +117,7 @@ class FileStorageService {
 
   async getSongById(songId) {
     try {
-      const songs = await this.loadFromFile();
+      const songs = await this.loadFromFile('music');
       return songs.find(song => song.id === songId) || null;
     } catch (error) {
       console.error('Error getting song by ID:', error);
@@ -109,7 +127,7 @@ class FileStorageService {
 
   async updateSong(songId, updates) {
     try {
-      const existingSongs = await this.loadFromFile();
+      const existingSongs = await this.loadFromFile('music');
       const songIndex = existingSongs.findIndex(song => song.id === songId);
       
       if (songIndex === -1) {
@@ -117,7 +135,7 @@ class FileStorageService {
       }
       
       existingSongs[songIndex] = { ...existingSongs[songIndex], ...updates };
-      await this.saveToFile(existingSongs);
+      await this.saveToFile(existingSongs, 'music');
       console.log('Song updated successfully:', songId);
       return true;
     } catch (error) {
@@ -126,25 +144,104 @@ class FileStorageService {
     }
   }
 
+  // Profile-related methods
+  async getProfile() {
+    try {
+      return await this.loadFromFile('profile');
+    } catch (error) {
+      console.error('Error getting profile:', error);
+      return {
+        bio: "",
+        skills: [],
+        socialLinks: {},
+        preferences: {}
+      };
+    }
+  }
+
+  async updateProfile(updates) {
+    try {
+      const currentProfile = await this.loadFromFile('profile');
+      const updatedProfile = { ...currentProfile, ...updates };
+      await this.saveToFile(updatedProfile, 'profile');
+      console.log('Profile updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  }
+
+  async updateBio(bio) {
+    try {
+      const profile = await this.getProfile();
+      profile.bio = bio;
+      await this.saveToFile(profile, 'profile');
+      return true;
+    } catch (error) {
+      console.error('Error updating bio:', error);
+      throw error;
+    }
+  }
+
+  async updateSkills(skills) {
+    try {
+      const profile = await this.getProfile();
+      profile.skills = skills;
+      await this.saveToFile(profile, 'profile');
+      return true;
+    } catch (error) {
+      console.error('Error updating skills:', error);
+      throw error;
+    }
+  }
+
+  // Utility methods
   async getStorageStats() {
     try {
-      const fileInfo = await FileSystem.getInfoAsync(this.filePath);
-      const songs = await this.loadFromFile();
+      const musicFileInfo = await FileSystem.getInfoAsync(this.musicFilePath);
+      const profileFileInfo = await FileSystem.getInfoAsync(this.profileFilePath);
+      const songs = await this.loadFromFile('music');
       
       return {
         songCount: songs.length,
-        fileSize: fileInfo.exists ? fileInfo.size : 0,
-        filePath: this.filePath,
-        lastModified: fileInfo.exists ? new Date(fileInfo.modificationTime) : null
+        musicFileSize: musicFileInfo.exists ? musicFileInfo.size : 0,
+        profileFileSize: profileFileInfo.exists ? profileFileInfo.size : 0,
+        musicFilePath: this.musicFilePath,
+        profileFilePath: this.profileFilePath,
+        lastModified: musicFileInfo.exists ? new Date(musicFileInfo.modificationTime) : null
       };
     } catch (error) {
       console.error('Error getting storage stats:', error);
       return {
         songCount: 0,
-        fileSize: 0,
-        filePath: this.filePath,
+        musicFileSize: 0,
+        profileFileSize: 0,
+        musicFilePath: this.musicFilePath,
+        profileFilePath: this.profileFilePath,
         lastModified: null
       };
+    }
+  }
+
+  // Get songs by type for profile page
+  async getTopTracks() {
+    try {
+      const songs = await this.getAllSongs();
+      return songs.filter(song => !song.artist || !song.artist.includes(' x '));
+    } catch (error) {
+      console.error('Error getting top tracks:', error);
+      return [];
+    }
+  }
+
+  async getCollaborations() {
+    try {
+      const songs = await this.getAllSongs();
+      return songs.filter(song => song.artist && song.artist.includes(' x '));
+    } catch (error) {
+      console.error('Error getting collaborations:', error);
+      return [];
     }
   }
 }
