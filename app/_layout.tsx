@@ -25,7 +25,7 @@ function RootLayoutNav() {
     // If user is logged in but on auth pages, redirect to main app
     if (user && (pathname === '/login' || pathname === '/register')) {
       console.log('User logged in, redirecting to main app');
-      router.replace('/(pages)');
+      router.replace('/');
       return;
     }
     
