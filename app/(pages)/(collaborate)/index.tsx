@@ -526,11 +526,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-        
-        {/* Existing link */}
-        <Link href="/details" style={styles.link}>
-          <Text style={styles.linkText}>View details</Text>
-        </Link>
       </ScrollView>
     </SafeAreaView>
   );
