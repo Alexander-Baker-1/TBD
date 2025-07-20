@@ -10,17 +10,13 @@ import {
   ActivityIndicator,
   StatusBar,
   Linking,
-  // Removed unused imports: Vibration, Notifications
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { fileStorageService } from './services/FileStorageService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Define your shared webhook URL here for clarity
-// In a real app, this would be your backend server's public URL
-const SHARED_WEBHOOK_URL = "https://webhook.site/45baf50a-52ab-4c93-b699-8c358d53b116";
+import WebhookReaderService from './services/WebhookReaderService';
 
 export default function AIMusicGenerator() {
   const router = useRouter();
@@ -39,31 +35,24 @@ export default function AIMusicGenerator() {
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [kieApiKey, setKieApiKey] = useState('');
   const [taskId, setTaskId] = useState(null);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(false); // Still useful for manual check UI
-
-  // Use expo-av Sound
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [monitoringInterval, setMonitoringInterval] = useState(null);
+  
+  // Use expo-av Sound 
   const soundRef = useRef(null);
-  // Removed pollingRef - no longer polling Suno directly
 
   useEffect(() => {
     // Get API keys from environment
     const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
     const kieKey = process.env.EXPO_PUBLIC_KIE_API_KEY;
-
+    
     setGeminiApiKey(geminiKey || '');
     setKieApiKey(kieKey || '');
-
-    console.log('API Keys loaded:', {
-      gemini: !!geminiKey,
-      kie: !!kieKey
+    
+    console.log('API Keys loaded:', { 
+      gemini: !!geminiKey, 
+      kie: !!kieKey 
     });
-
-    // --- REMOVED: setInterval for pollPendingSunoTasks ---
-    // The KIE.ai API works with callbacks, not polling for task status.
-    // Your React Native app cannot receive direct callbacks.
-    // You need a backend server to receive webhooks and then notify the app.
-    // For local testing, you'll manually check webhook.site.
-    // ---
 
     // Initialize audio session
     Audio.setAudioModeAsync({
@@ -78,15 +67,15 @@ export default function AIMusicGenerator() {
     loadSavedSongs();
 
     return () => {
-      // Cleanup sound
+      // Cleanup sound and monitoring
       if (soundRef.current) {
         soundRef.current.unloadAsync();
       }
-      // No pollingRef cleanup needed if polling is removed
+      if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+      }
     };
-  }, []); // Empty dependency array means this runs once on component mount
-
-  // Removed unused function: submitMusicGeneration
+  }, []);
 
   const loadSavedSongs = async () => {
     try {
@@ -118,7 +107,7 @@ export default function AIMusicGenerator() {
     try {
       await fileStorageService.addSong(newSong);
       await loadSavedSongs(); // Reload the songs list
-
+      
       Alert.alert(
         'Song Saved! 💾',
         `"${newSong.title}" has been permanently saved to your library.\n\nYou can access it from the collaborate page anytime, even after restarting the app!`
@@ -129,7 +118,7 @@ export default function AIMusicGenerator() {
     }
   };
 
-  // NEW: Manual Result Input Function (for testing with webhook.site)
+  // Manual Result Input Function (for testing with webhook.site)
   const handleManualResultInput = () => {
     let inputTaskId = '';
     let inputAudioUrl = '';
@@ -209,102 +198,161 @@ export default function AIMusicGenerator() {
     );
   };
 
-
-  // Removed setupCallbackHandler as it's not directly used in this client-side app
-  // The backend would set up the actual webhook.
-
-  // FIXED: Proper task status checking (conceptual for KIE.ai's callback model)
-  const checkTaskStatus = async (taskIdToCheck) => {
-    // This function is illustrative. In a real scenario, your app would
-    // be notified by your backend server, not poll for results.
-    const currentTaskId = taskIdToCheck || taskId;
-    if (!currentTaskId) {
-      Alert.alert('No Task ID', 'No task ID available to check. Generate music first.');
+  // Auto-monitoring generation function
+  const generateWithAutoMonitoring = async () => {
+    if (!isConnected) {
+      Alert.alert('Error', 'Not connected to API');
       return;
     }
 
     try {
-      setIsCheckingStatus(true);
-
-      // KIE.ai uses callbacks. The user must check their webhook.site URL.
-      // We retrieve the webhook URL that was originally used for this task.
-      const storedTaskInfo = await AsyncStorage.getItem(`task_${currentTaskId}`);
-      const taskMetadata = storedTaskInfo ? JSON.parse(storedTaskInfo) : {};
-      const actualWebhookUrl = taskMetadata.webhookUrl || SHARED_WEBHOOK_URL; // Fallback to shared if not found
-
-      Alert.alert(
-        'Important: Callback System',
-        `KIE.ai uses callbacks, not polling.\n\nTask ID: ${currentTaskId}\n\nResults are sent to the callback URL when generation completes. You need to check the webhook URL yourself.\n\nThis app cannot directly receive webhooks.\n\nOpen this URL in your browser:\n${actualWebhookUrl}`,
-        [
-          { text: 'OK' },
-          {
-            text: 'Open Webhook URL',
-            onPress: () => {
-              Linking.openURL(actualWebhookUrl);
-            }
-          },
-          { text: 'Add Manual Result', onPress: handleManualResultInput }
-        ]
-      );
-
-    } catch (error) {
-      console.error('Manual check error:', error);
-      Alert.alert('Check Error', `Failed to retrieve task info: ${error.message}`);
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
-
-  // --- CRITICAL CHANGE: Removed pollPendingSunoTasks ---
-  // This function was attempting to poll Suno's direct API, which is blocked by Cloudflare
-  // and is not how KIE.ai's callback system works.
-  // The app relies on a backend receiving the webhook, or manual input for demo purposes.
-
-  const connectToAPI = async () => {
-    try {
       setIsLoading(true);
-      setConnectionStatus('connecting');
-
-      if (kieApiKey) {
-        // Test KIE.ai API connection by checking credits
-        console.log('Testing KIE.ai Suno API connection...');
-
-        const response = await fetch('https://api.kie.ai/api/v1/chat/credit', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${kieApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Credits response:', data);
-          setIsConnected(true);
-          setConnectionStatus('connected - real music ready');
-          Alert.alert('🎵 Real Music Ready!', `Connected to KIE.ai Suno API!\nCredits: ${data.data || data.credit || 'Available'}\nYou can now generate professional music tracks!`);
-        } else if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your KIE.ai API key.');
+      
+      // Validate inputs
+      if (customMode) {
+        if (instrumental) {
+          if (!style.trim() || !title.trim()) {
+            Alert.alert('Invalid Input', 'For instrumental custom mode, style and title are required');
+            return;
+          }
         } else {
-          throw new Error(`KIE.ai API test failed: ${response.status}`);
+          if (!style.trim() || !prompt.trim() || !title.trim()) {
+            Alert.alert('Invalid Input', 'For lyrical custom mode, style, prompt, and title are required');
+            return;
+          }
         }
       } else {
-        // Demo mode
-        setIsConnected(true);
-        setConnectionStatus('demo mode');
-        Alert.alert('Demo Mode', 'Add EXPO_PUBLIC_KIE_API_KEY to .env for real music generation');
+        if (!prompt.trim()) {
+          Alert.alert('Invalid Input', 'Please enter a music prompt');
+          return;
+        }
+        if (prompt.length > 400) {
+          Alert.alert('Prompt Too Long', 'In non-custom mode, prompt must be under 400 characters');
+          return;
+        }
       }
 
+      setGeneratedMusic({
+        prompt: prompt.trim(),
+        style: style.trim(),
+        title: title.trim(),
+        customMode,
+        instrumental,
+        model,
+        startTime: new Date(),
+        status: 'starting auto-monitored generation'
+      });
+
+      if (kieApiKey) {
+        // Use the auto-monitoring service
+        const result = await WebhookReaderService.generateWithAutoMonitoring(
+          {
+            model,
+            customMode,
+            instrumental,
+            prompt: prompt.trim(),
+            style: style.trim(),
+            title: title.trim()
+          },
+          kieApiKey,
+          async (result) => {
+            setIsLoading(false);
+            
+            if (result.success && result.webhookData) {
+              console.log('🎵 Auto-monitoring found result!');
+              
+              // Automatically process and save the song
+              const saveResult = await WebhookReaderService.processWebhookResult(
+                result.webhookData,
+                result.taskId,
+                fileStorageService
+              );
+              
+              if (saveResult.success) {
+                setGeneratedMusic(prev => ({
+                  ...prev,
+                  status: 'completed - automatically saved',
+                  audioUrl: saveResult.song.audioUrl,
+                  title: saveResult.song.title,
+                  duration: saveResult.song.duration,
+                  endTime: new Date()
+                }));
+                
+                Alert.alert(
+                  '🎵 Music Ready!', 
+                  `"${saveResult.song.title}" has been automatically added to your library!`,
+                  [
+                    { text: 'OK' },
+                    { 
+                      text: 'Play Now', 
+                      onPress: () => {
+                        if (saveResult.song.audioUrl) {
+                          playGeneratedMusic({
+                            audio_url: saveResult.song.audioUrl,
+                            title: saveResult.song.title,
+                            duration: saveResult.song.duration,
+                            tags: saveResult.song.tags
+                          }, [saveResult.song]);
+                        }
+                      }
+                    }
+                  ]
+                );
+              } else {
+                Alert.alert('Save Error', saveResult.error);
+              }
+            } else {
+              setGeneratedMusic(prev => ({
+                ...prev,
+                status: 'monitoring completed - check webhook manually',
+                endTime: new Date()
+              }));
+              
+              Alert.alert(
+                'Monitoring Complete',
+                result.error || 'Auto-monitoring finished. Check your webhook URL manually or try the manual entry form.'
+              );
+            }
+            
+            // Clear monitoring interval
+            if (monitoringInterval) {
+              clearInterval(monitoringInterval);
+              setMonitoringInterval(null);
+            }
+          }
+        );
+        
+        if (result.success) {
+          setTaskId(result.taskId);
+          setMonitoringInterval(result.monitoringInterval);
+          
+          setGeneratedMusic(prev => ({
+            ...prev,
+            status: 'generating with auto-monitoring active',
+            taskId: result.taskId,
+            webhookUrl: result.webhookUrl
+          }));
+          
+          Alert.alert(
+            '🤖 Auto-Monitoring Started!',
+            `Task ID: ${result.taskId}\n\nYour music is being generated and will be automatically added to your library when ready!\n\nThe app will check for results every 30 seconds.`,
+            [{ text: 'Great!' }]
+          );
+        } else {
+          throw new Error(result.error);
+        }
+      } else {
+        await generateDemoMusic();
+      }
+      
     } catch (error) {
-      console.error('Connection error:', error);
-      setConnectionStatus('demo mode');
-      setIsConnected(true);
-      Alert.alert('Demo Mode', 'Using demo mode. Add KIE.ai API key for real music generation.');
-    } finally {
+      console.error('Auto-monitoring generation error:', error);
+      Alert.alert('Generation Error', `Failed to start auto-monitored generation: ${error.message}`);
       setIsLoading(false);
     }
   };
 
+  // Keep original function as fallback
   const generateRealMusic = async () => {
     if (!isConnected) {
       Alert.alert('Error', 'Not connected to API. Please connect first.');
@@ -319,25 +367,25 @@ export default function AIMusicGenerator() {
         if (instrumental) {
           if (!style.trim() || !title.trim()) {
             Alert.alert('Invalid Input', 'For instrumental custom mode, style and title are required');
-            setIsLoading(false); // Stop loading here
+            setIsLoading(false);
             return;
           }
         } else {
           if (!style.trim() || !prompt.trim() || !title.trim()) {
             Alert.alert('Invalid Input', 'For lyrical custom mode, style, prompt, and title are required');
-            setIsLoading(false); // Stop loading here
+            setIsLoading(false);
             return;
           }
         }
       } else {
         if (!prompt.trim()) {
           Alert.alert('Invalid Input', 'Please enter a music prompt');
-          setIsLoading(false); // Stop loading here
+          setIsLoading(false);
           return;
         }
         if (prompt.length > 400) {
           Alert.alert('Prompt Too Long', 'In non-custom mode, prompt must be under 400 characters');
-          setIsLoading(false); // Stop loading here
+          setIsLoading(false);
           return;
         }
       }
@@ -371,9 +419,12 @@ export default function AIMusicGenerator() {
   const generateWithKieSuno = async () => {
     try {
       console.log('Starting KIE.ai Suno music generation with shared webhook...');
+      
+      // Get webhook URL from environment variable
+      const SHARED_WEBHOOK_URL = process.env.EXPO_PUBLIC_WEBHOOK_URL || "https://webhook.site/45baf50a-52ab-4c93-b699-8c358d53b116";
 
       // Add user identification to webhook URL
-      const currentUserId = 'user-' + Date.now(); // In real app, get from auth system
+      const currentUserId = 'user-' + Date.now();
       const webhookWithParams = `${SHARED_WEBHOOK_URL}?userId=${currentUserId}&ref=${Date.now()}`;
 
       // Prepare request body based on mode
@@ -381,7 +432,7 @@ export default function AIMusicGenerator() {
         model: model,
         customMode: customMode,
         instrumental: instrumental,
-        callBackUrl: webhookWithParams // Use shared webhook with user params
+        callBackUrl: webhookWithParams
       };
 
       if (customMode) {
@@ -422,11 +473,11 @@ export default function AIMusicGenerator() {
               ...prev,
               status: 'generation started - check shared webhook',
               taskId: receivedTaskId,
-              callbackUrl: SHARED_WEBHOOK_URL, // Store the base webhook URL for display
+              callbackUrl: SHARED_WEBHOOK_URL,
               userId: currentUserId
             }));
 
-            // FIXED: Combine AsyncStorage.setItem calls
+            // Save task info
             await AsyncStorage.setItem(`task_${receivedTaskId}`, JSON.stringify({
               userId: currentUserId,
               taskId: receivedTaskId,
@@ -437,17 +488,17 @@ export default function AIMusicGenerator() {
               customMode,
               instrumental,
               startTime: Date.now(),
-              webhookUrl: webhookWithParams // Store the full webhook URL with params
+              webhookUrl: webhookWithParams
             }));
 
             Alert.alert(
               '🎵 Generation Started!',
-              `Task ID: ${receivedTaskId}\n\nYour music is being generated!\n\n🔗 Results will be sent to:\n${SHARED_WEBHOOK_URL}\n\n⏱️ Results typically arrive in 2-5 minutes.\n\n💡 Monitor the webhook URL (e.g., in a browser tab) for your results, then use "Add Manual Result" to import the audio into the app.`,
+              `Task ID: ${receivedTaskId}\n\nYour music is being generated!\n\n🔗 Results will be sent to:\n${SHARED_WEBHOOK_URL}\n\n⏱️ Results typically arrive in 2-5 minutes.\n\n💡 Monitor the webhook URL for your results, then use "Add Manual Result" to import the audio into the app.`,
               [
                 {
                   text: 'Open Webhook.site',
                   onPress: () => {
-                    Linking.openURL(SHARED_WEBHOOK_URL); // Open the base URL
+                    Linking.openURL(SHARED_WEBHOOK_URL);
                   }
                 },
                 { text: 'OK' }
@@ -481,26 +532,14 @@ export default function AIMusicGenerator() {
     }
   };
 
-  // REMOVED: pollForResults function (not needed with callback system)
-
-  // NEW: Function to handle callback results (this function would be called by your backend)
-  // For client-side app, this is conceptual or used for manual input.
+  // Function to handle callback results
   const handleCallbackResults = async (callbackData) => {
     try {
       if (callbackData.callbackType === 'complete' && callbackData.data && callbackData.data.length > 0) {
         const firstTrack = callbackData.data[0];
         if (firstTrack.audio_url) {
           console.log('Music generation complete via callback:', firstTrack);
-          // Here, you would ideally:
-          // 1. Match the callbackData.taskId with a pending task in AsyncStorage
-          // 2. Retrieve the original prompt, style, title etc.
-          // 3. Save the song to library
-          // 4. Potentially trigger a local notification to the user if the app is foregrounded
-          // This requires a backend to receive the webhook and then notify the client app.
-          Alert.alert("Callback Received (Backend Only)", "A callback was received for a generated track. You'd process this on a backend server.");
-          // For immediate testing:
-          // await playGeneratedMusic(firstTrack, callbackData.data);
-          // await saveSongToLibrary(firstTrack); // Save if direct play/save is desired for testing
+          await playGeneratedMusic(firstTrack, callbackData.data);
         }
       }
     } catch (error) {
@@ -510,7 +549,7 @@ export default function AIMusicGenerator() {
 
   const playGeneratedMusic = async (track, allTracks) => {
     try {
-      const audioUrl = track.audio_url;
+      const audioUrl = track.audio_url || track.audioUrl;
       const title = track.title || 'Generated Track';
       const tags = track.tags || '';
       const duration = track.duration || 0;
@@ -563,7 +602,6 @@ export default function AIMusicGenerator() {
       );
 
       // Automatically save the song to library
-      // Only save if it's not a demo track and has a proper audio URL
       if (audioUrl && audioUrl.startsWith('http')) {
         saveSongToLibrary(track);
       }
@@ -640,26 +678,29 @@ This track would be generated using Suno AI's professional music generation tech
       ...prev,
       status: 'demo description generated',
       description: description,
-      // No audioUrl for demo, so it won't try to play
       endTime: new Date()
     }));
 
     Alert.alert('📝 Demo Description Generated', 'Add KIE.ai API key to generate real Suno AI music!');
   };
 
+  // Cleanup monitoring on disconnect/stop
   const stopMusic = async () => {
     try {
-      // No pollingRef cleanup needed if polling is removed
-      
+      // Stop webhook monitoring
+      if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        setMonitoringInterval(null);
+        console.log('🛑 Stopped webhook monitoring');
+      }
+
       if (soundRef.current) {
         await soundRef.current.pauseAsync();
-        // Option: unload the sound completely to free resources
-        await soundRef.current.unloadAsync(); 
+        await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
 
       setIsPlaying(false);
-      // setTaskId(null); // Keep taskId if user wants to manually check its status
 
       if (generatedMusic) {
         setGeneratedMusic({
@@ -669,7 +710,7 @@ This track would be generated using Suno AI's professional music generation tech
         });
       }
 
-      Alert.alert('Stopped', 'Music playback stopped');
+      Alert.alert('Stopped', 'Music playback and monitoring stopped');
     } catch (error) {
       console.error('Stop error:', error);
     }
@@ -680,7 +721,10 @@ This track would be generated using Suno AI's professional music generation tech
       await stopMusic();
     }
 
-    // No pollingRef cleanup needed if polling is removed
+    if (monitoringInterval) {
+      clearInterval(monitoringInterval);
+      setMonitoringInterval(null);
+    }
 
     if (soundRef.current) {
       await soundRef.current.unloadAsync();
@@ -690,8 +734,94 @@ This track would be generated using Suno AI's professional music generation tech
     setIsConnected(false);
     setConnectionStatus('disconnected');
     setGeneratedMusic(null);
-    setTaskId(null); // Clear taskId on disconnect
+    setTaskId(null);
     Alert.alert('Disconnected', 'Disconnected from KIE.ai Suno API');
+  };
+
+  const connectToAPI = async () => {
+    try {
+      setIsLoading(true);
+      setConnectionStatus('connecting');
+
+      if (kieApiKey) {
+        // Test KIE.ai API connection by checking credits
+        console.log('Testing KIE.ai Suno API connection...');
+
+        const response = await fetch('https://api.kie.ai/api/v1/chat/credit', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${kieApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Credits response:', data);
+          setIsConnected(true);
+          setConnectionStatus('connected - real music ready');
+          Alert.alert('🎵 Real Music Ready!', `Connected to KIE.ai Suno API!\nCredits: ${data.data || data.credit || 'Available'}\nYou can now generate professional music tracks!`);
+        } else if (response.status === 401) {
+          throw new Error('Invalid API key. Please check your KIE.ai API key.');
+        } else {
+          throw new Error(`KIE.ai API test failed: ${response.status}`);
+        }
+      } else {
+        // Demo mode
+        setIsConnected(true);
+        setConnectionStatus('demo mode');
+        Alert.alert('Demo Mode', 'Add EXPO_PUBLIC_KIE_API_KEY to .env for real music generation');
+      }
+
+    } catch (error) {
+      console.error('Connection error:', error);
+      setConnectionStatus('demo mode');
+      setIsConnected(true);
+      Alert.alert('Demo Mode', 'Using demo mode. Add KIE.ai API key for real music generation.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const checkTaskStatus = async (taskIdToCheck) => {
+    const currentTaskId = taskIdToCheck || taskId;
+    if (!currentTaskId) {
+      Alert.alert('No Task ID', 'No task ID available to check. Generate music first.');
+      return;
+    }
+
+    try {
+      setIsCheckingStatus(true);
+
+      // Get webhook URL from environment
+      const SHARED_WEBHOOK_URL = process.env.EXPO_PUBLIC_WEBHOOK_URL || "https://webhook.site/45baf50a-52ab-4c93-b699-8c358d53b116";
+
+      // Retrieve stored task info
+      const storedTaskInfo = await AsyncStorage.getItem(`task_${currentTaskId}`);
+      const taskMetadata = storedTaskInfo ? JSON.parse(storedTaskInfo) : {};
+      const actualWebhookUrl = taskMetadata.webhookUrl || SHARED_WEBHOOK_URL;
+
+      Alert.alert(
+        'Important: Callback System',
+        `KIE.ai uses callbacks, not polling.\n\nTask ID: ${currentTaskId}\n\nResults are sent to the callback URL when generation completes. You need to check the webhook URL yourself.\n\nOpen this URL in your browser:\n${actualWebhookUrl}`,
+        [
+          { text: 'OK' },
+          {
+            text: 'Open Webhook URL',
+            onPress: () => {
+              Linking.openURL(actualWebhookUrl);
+            }
+          },
+          { text: 'Add Manual Result', onPress: handleManualResultInput }
+        ]
+      );
+
+    } catch (error) {
+      console.error('Manual check error:', error);
+      Alert.alert('Check Error', `Failed to retrieve task info: ${error.message}`);
+    } finally {
+      setIsCheckingStatus(false);
+    }
   };
 
   const getStatusColor = () => {
@@ -705,20 +835,18 @@ This track would be generated using Suno AI's professional music generation tech
   };
 
   const formatDuration = (startTime, endTime) => {
-    if (!startTime || !endTime) return '0:00'; // Handle cases where times are not set
+    if (!startTime || !endTime) return '0:00';
     const duration = Math.floor((new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000);
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-
   const openKieGuide = () => {
     Alert.alert(
       'Get KIE.ai API Key 🎵',
       'To generate real Suno AI music:\n\n1. Visit kie.ai\n2. Sign up and get your API key\n3. Add to .env file as EXPO_PUBLIC_KIE_API_KEY\n\nThis uses the official Suno AI technology for professional music generation.\n\nWould you like to open the website?',
       [
-        { text: 'Cancel', style: 'cancel' },
         { text: 'Open KIE.ai', onPress: () => Linking.openURL('https://kie.ai') }
       ]
     );
@@ -760,7 +888,7 @@ This track would be generated using Suno AI's professional music generation tech
           headerTitleStyle: { fontWeight: 'bold' },
           headerLeft: () => (
             <TouchableOpacity
-              onPress={() => router.push('/(tabs)/')}
+              onPress={() => router.back()}
               style={{ marginLeft: -8, padding: 8 }}
             >
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -910,166 +1038,370 @@ This track would be generated using Suno AI's professional music generation tech
           <Text style={styles.sectionTitle}>Music Generation</Text>
 
           {/* Model Selection */}
-          <View>
-            <Text style={styles.label}>AI Model:</Text>
-            <View style={styles.modelSelection}>
-              {['V3', 'V3_5', 'V4', 'V4_5'].map((m) => (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>AI Model</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {['V3_5', 'V4', 'V4_5'].map((modelName) => (
                 <TouchableOpacity
-                  key={m}
-                  style={[styles.modelButton, model === m && styles.activeModelButton]}
-                  onPress={() => setModel(m)}
+                  key={modelName}
+                  style={[styles.quickPrompt, model === modelName && styles.activePrompt]}
+                  onPress={() => setModel(modelName)}
                   disabled={isLoading}
                 >
-                  <Text style={[styles.modelButtonText, model === m && styles.activeModelButtonText]}>{m}</Text>
+                  <Text style={[styles.quickPromptText, model === modelName && styles.activePromptText]}>
+                    {modelName}
+                  </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
-
-          {customMode && (
+          {!customMode ? (
+            // Simple mode - only prompt
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Music Prompt (max 400 chars)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={prompt}
+                onChangeText={setPrompt}
+                placeholder="Describe the music you want to create"
+                multiline={true}
+                numberOfLines={3}
+                maxLength={400}
+                editable={!isLoading}
+              />
+              <Text style={styles.charCount}>{prompt.length}/400</Text>
+            </View>
+          ) : (
+            // Custom mode - style, title, and optionally prompt
             <>
-              <Text style={styles.label}>Title (e.g., "My Epic Ballad"):</Text>
-              <TextInput
-                style={styles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Enter a title for your song"
-                editable={!isLoading}
-              />
-              <Text style={styles.label}>Style of Music (e.g., "EDM, energetic, cyberpunk"):</Text>
-              <TextInput
-                style={styles.input}
-                value={style}
-                onChangeText={setStyle}
-                placeholder="e.g., 'lo-fi hip-hop, chill, jazzy'"
-                editable={!isLoading}
-              />
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Style ({model === 'V4_5' ? 'max 1000' : 'max 200'} chars)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={style}
+                  onChangeText={setStyle}
+                  placeholder="electronic, energetic, upbeat"
+                  maxLength={model === 'V4_5' ? 1000 : 200}
+                  editable={!isLoading}
+                />
+                <Text style={styles.charCount}>{style.length}/{model === 'V4_5' ? 1000 : 200}</Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Title (max 80 chars)</Text>
+                <TextInput
+                  style={styles.numberInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="My Awesome Track"
+                  maxLength={80}
+                  editable={!isLoading}
+                />
+                <Text style={styles.charCount}>{title.length}/80</Text>
+              </View>
+
+              {!instrumental && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Lyrics Prompt ({model === 'V4_5' ? 'max 5000' : 'max 3000'} chars)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={prompt}
+                    onChangeText={setPrompt}
+                    placeholder="Lyrics or vocal description"
+                    multiline={true}
+                    numberOfLines={4}
+                    maxLength={model === 'V4_5' ? 5000 : 3000}
+                    editable={!isLoading}
+                  />
+                  <Text style={styles.charCount}>{prompt.length}/{model === 'V4_5' ? 5000 : 3000}</Text>
+                </View>
+              )}
             </>
           )}
 
-          {!instrumental || !customMode ? (
-            <>
-              <Text style={styles.label}>
-                {customMode && !instrumental ? 'Lyrics / Song Description:' : 'Music Prompt:'}
-              </Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={prompt}
-                onChangeText={setPrompt}
-                placeholder={
-                  customMode && !instrumental
-                    ? "Enter your lyrics or detailed song description here."
-                    : "e.g., 'A soaring orchestral piece for a movie soundtrack'"
-                }
-                multiline
-                numberOfLines={customMode && !instrumental ? 6 : 3}
-                editable={!isLoading}
-              />
-              {customMode && !instrumental && (
-                <Text style={styles.hint}>
-                  💡 For best results, ensure your lyrics are clearly formatted.
-                </Text>
-              )}
-              {!customMode && (
-                <Text style={styles.hint}>
-                  Max 400 characters in Simple Mode.
-                </Text>
-              )}
-            </>
-          ) : null}
-
           <TouchableOpacity
-            style={[styles.button, styles.generateButton, (isLoading || !isConnected) && styles.disabledButton]}
-            onPress={generateRealMusic}
-            disabled={isLoading || !isConnected}
+            style={[styles.button, isPlaying ? styles.stopButton : styles.playButton]}
+            onPress={isPlaying ? stopMusic : generateWithAutoMonitoring}
+            disabled={!isConnected || isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="white" />
+              <>
+                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+                <Text style={styles.buttonText}>
+                  {kieApiKey ? 'Auto-Generating...' : 'Generating Description...'}
+                </Text>
+              </>
             ) : (
               <>
-                <Ionicons name="sparkles" size={20} color="white" style={styles.buttonIcon} />
-                <Text style={styles.buttonText}>Generate Music</Text>
+                <Ionicons 
+                  name={isPlaying ? "stop" : (kieApiKey ? "musical-notes" : "document-text")} 
+                  size={20} 
+                  color="white" 
+                  style={styles.buttonIcon}
+                />
+                <Text style={styles.buttonText}>
+                  {isPlaying ? 'Stop Music' : 
+                   kieApiKey ? '🤖 Auto-Generate Music' : '📝 Generate Description'}
+                </Text>
               </>
             )}
           </TouchableOpacity>
 
-          {taskId && (
+          {/* Fallback Manual Generation Button */}
+          {kieApiKey && (
             <TouchableOpacity
-              style={[styles.button, styles.checkStatusButton, isCheckingStatus && styles.disabledButton]}
-              onPress={() => checkTaskStatus(taskId)}
-              disabled={isCheckingStatus}
+              style={[styles.button, styles.manualButton]}
+              onPress={generateRealMusic}
+              disabled={!isConnected || isLoading}
             >
-              {isCheckingStatus ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <>
-                  <Ionicons name="search" size={20} color="white" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>Check Task Status</Text>
-                </>
-              )}
+              <Ionicons name="construct" size={16} color="white" style={styles.buttonIcon} />
+              <Text style={[styles.buttonText, { fontSize: 14 }]}>Manual Generation (Old Method)</Text>
             </TouchableOpacity>
           )}
 
+          {/* Manual Result Input Button */}
           <TouchableOpacity
-            style={[styles.button, styles.manualInputButton]}
+            style={[styles.button, styles.checkButton]}
             onPress={handleManualResultInput}
           >
-            <Ionicons name="add-circle" size={20} color="white" style={styles.buttonIcon} />
-            <Text style={styles.buttonText}>Add Manual Result</Text>
+            <Ionicons name="add-circle" size={16} color="white" style={styles.buttonIcon} />
+            <Text style={[styles.buttonText, { fontSize: 14 }]}>Add Manual Result</Text>
           </TouchableOpacity>
-
-          {generatedMusic && (generatedMusic.audioUrl || generatedMusic.description) && (
-            <View style={styles.generatedMusicContainer}>
-              <Text style={styles.sectionTitle}>Generated Music</Text>
-              {generatedMusic.title && <Text style={styles.generatedTitle}>Title: {generatedMusic.title}</Text>}
-              {generatedMusic.prompt && <Text style={styles.generatedText}>Prompt: {generatedMusic.prompt}</Text>}
-              {generatedMusic.style && <Text style={styles.generatedText}>Style: {generatedMusic.style}</Text>}
-              {generatedMusic.model && <Text style={styles.generatedText}>Model: {generatedMusic.model}</Text>}
-              {generatedMusic.status && <Text style={styles.generatedText}>Status: {generatedMusic.status}</Text>}
-              {generatedMusic.startTime && generatedMusic.endTime && (
-                <Text style={styles.generatedText}>
-                  Generation Time: {formatDuration(generatedMusic.startTime, generatedMusic.endTime)}
-                </Text>
-              )}
-              {generatedMusic.audioUrl ? (
-                <View style={styles.audioPlayer}>
-                  <Text style={styles.label}>Audio Player:</Text>
-                  <View style={styles.playerControls}>
-                    <TouchableOpacity onPress={() => Linking.openURL(generatedMusic.audioUrl)}>
-                      <Ionicons name="download" size={24} color="#6366f1" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => playGeneratedMusic(generatedMusic, [generatedMusic])} disabled={isPlaying}>
-                      <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={48} color="#6366f1" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={stopMusic} disabled={!isPlaying}>
-                      <Ionicons name="stop-circle" size={24} color="#6366f1" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <Text style={styles.generatedText}>No audio URL available (demo or pending callback).</Text>
-              )}
-              {generatedMusic.description && (
-                <View style={styles.descriptionBox}>
-                  <Text style={styles.descriptionTitle}>AI Generated Description:</Text>
-                  <Text style={styles.descriptionText}>{generatedMusic.description}</Text>
-                </View>
-              )}
-              {generatedMusic.audioUrl && (
-                <TouchableOpacity
-                  style={[styles.button, styles.saveButton]}
-                  onPress={() => saveSongToLibrary(generatedMusic)}
-                >
-                  <Ionicons name="save" size={20} color="white" style={styles.buttonIcon} />
-                  <Text style={styles.buttonText}>Save to Library</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
         </View>
 
-        <View style={{ height: 50 }} /> {/* Spacer */}
+        {/* Generation Status */}
+        {generatedMusic && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Generated Music</Text>
+            <View style={styles.generationInfo}>
+              <Text style={styles.infoLabel}>Mode:</Text>
+              <Text style={styles.infoValue}>
+                {generatedMusic.customMode ? 'Custom' : 'Simple'} - {generatedMusic.instrumental ? 'Instrumental' : 'With Lyrics'}
+              </Text>
+
+              <Text style={styles.infoLabel}>Model:</Text>
+              <Text style={styles.infoValue}>{generatedMusic.model}</Text>
+
+              {generatedMusic.customMode && (
+                <>
+                  <Text style={styles.infoLabel}>Style:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.style}</Text>
+                  
+                  <Text style={styles.infoLabel}>Title:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.title}</Text>
+                </>
+              )}
+
+              {(!generatedMusic.customMode || !generatedMusic.instrumental) && (
+                <>
+                  <Text style={styles.infoLabel}>Prompt:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.prompt}</Text>
+                </>
+              )}
+              
+              <Text style={styles.infoLabel}>Status:</Text>
+              <Text style={[styles.infoValue, { 
+                color: generatedMusic.status.includes('real Suno AI music') ? '#8b5cf6' : 
+                      generatedMusic.status.includes('demo') ? '#FF9800' : 
+                      generatedMusic.status.includes('generating') || generatedMusic.status.includes('callback') ? '#f59e0b' : '#4CAF50' 
+              }]}>
+                {generatedMusic.status}
+              </Text>
+              
+              {generatedMusic.taskId && (
+                <>
+                  <Text style={styles.infoLabel}>Task ID:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.taskId}</Text>
+                  
+                  {generatedMusic.webhookUrl && (
+                    <>
+                      <Text style={styles.infoLabel}>Webhook URL:</Text>
+                      <Text style={[styles.infoValue, { color: '#3b82f6', fontSize: 12 }]}>
+                        {generatedMusic.webhookUrl}
+                      </Text>
+                      <Text style={[styles.infoValue, { fontStyle: 'italic', fontSize: 12 }]}>
+                        ↗ Check this URL for results when generation completes
+                      </Text>
+                    </>
+                  )}
+                  
+                  <TouchableOpacity 
+                    style={[styles.button, styles.checkButton]} 
+                    onPress={() => checkTaskStatus(generatedMusic.taskId)}
+                    disabled={isCheckingStatus}
+                  >
+                    {isCheckingStatus ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="information-circle" size={16} color="white" style={styles.buttonIcon} />
+                        <Text style={[styles.buttonText, { fontSize: 14 }]}>About Callback System</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
+              
+              {generatedMusic.title && generatedMusic.audioUrl && (
+                <>
+                  <Text style={styles.infoLabel}>Track Title:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.title}</Text>
+                </>
+              )}
+
+              {generatedMusic.tags && (
+                <>
+                  <Text style={styles.infoLabel}>Tags:</Text>
+                  <Text style={styles.infoValue}>{generatedMusic.tags}</Text>
+                </>
+              )}
+
+              {generatedMusic.duration && (
+                <>
+                  <Text style={styles.infoLabel}>Duration:</Text>
+                  <Text style={styles.infoValue}>{Math.round(generatedMusic.duration)}s</Text>
+                </>
+              )}
+
+              {generatedMusic.totalTracks && (
+                <>
+                  <Text style={styles.infoLabel}>Generated Tracks:</Text>
+                  <Text style={styles.infoValue}>
+                    {generatedMusic.totalTracks} variations (playing track {generatedMusic.currentTrack})
+                  </Text>
+                </>
+              )}
+              
+              {generatedMusic.audioUrl && (
+                <>
+                  <Text style={styles.infoLabel}>Suno AI Audio:</Text>
+                  <Text style={[styles.infoValue, { color: '#4CAF50' }]}>✅ Professional Quality Generated</Text>
+                </>
+              )}
+              
+              {generatedMusic.description && (
+                <>
+                  <Text style={styles.infoLabel}>AI Description:</Text>
+                  <ScrollView style={styles.descriptionContainer} nestedScrollEnabled>
+                    <Text style={styles.infoValueDescription}>{generatedMusic.description}</Text>
+                  </ScrollView>
+                </>
+              )}
+              
+              {generatedMusic.endTime && (
+                <>
+                  <Text style={styles.infoLabel}>Generation Time:</Text>
+                  <Text style={styles.infoValue}>
+                    {formatDuration(generatedMusic.startTime, generatedMusic.endTime)}
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* How KIE.ai Works */}
+        {kieApiKey && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>How KIE.ai Works</Text>
+            <View style={styles.callbackInfo}>
+              <Text style={styles.callbackInfoTitle}>🔄 Callback System</Text>
+              <Text style={styles.callbackInfoText}>
+                KIE.ai uses callbacks, not polling. When music generation completes, results are sent to your callback URL.
+              </Text>
+              
+              <Text style={styles.callbackInfoTitle}>⏱️ Generation Time</Text>
+              <Text style={styles.callbackInfoText}>
+                Professional music generation typically takes 2-5 minutes depending on complexity and server load.
+              </Text>
+              
+              <Text style={styles.callbackInfoTitle}>🎵 What You Get</Text>
+              <Text style={styles.callbackInfoText}>
+                • High-quality audio files{'\n'}• Professional composition{'\n'}• Multiple track variations{'\n'}• Timestamped lyrics (if applicable)
+              </Text>
+              
+              <Text style={styles.callbackInfoTitle}>🔧 For Production</Text>
+              <Text style={styles.callbackInfoText}>
+                Set up a webhook endpoint to automatically receive and process generated music when it's ready.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Quick Prompts */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Prompts</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {[
+              'upbeat electronic dance music', 
+              'calm ambient soundscape', 
+              'energetic rock anthem', 
+              'smooth jazz with piano', 
+              'epic orchestral cinematic',
+              'lo-fi hip hop beats',
+              'acoustic folk melody',
+              'synthwave retro vibes'
+            ].map((quickPrompt) => (
+              <TouchableOpacity
+                key={quickPrompt}
+                style={[styles.quickPrompt, prompt === quickPrompt && styles.activePrompt]}
+                onPress={() => setPrompt(quickPrompt)}
+                disabled={isLoading}
+              >
+                <Text style={[styles.quickPromptText, prompt === quickPrompt && styles.activePromptText]}>
+                  {quickPrompt}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Quick Styles (for custom mode) */}
+        {customMode && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quick Styles</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {[
+                'electronic, energetic, upbeat',
+                'acoustic, calm, peaceful',
+                'rock, powerful, driving',
+                'jazz, smooth, sophisticated', 
+                'classical, elegant, dramatic',
+                'ambient, atmospheric, ethereal',
+                'hip-hop, rhythmic, modern',
+                'folk, organic, heartfelt'
+              ].map((quickStyle) => (
+                <TouchableOpacity
+                  key={quickStyle}
+                  style={[styles.quickPrompt, style === quickStyle && styles.activePrompt]}
+                  onPress={() => setStyle(quickStyle)}
+                  disabled={isLoading}
+                >
+                  <Text style={[styles.quickPromptText, style === quickStyle && styles.activePromptText]}>
+                    {quickStyle}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Info */}
+        <View style={styles.section}>
+          <Text style={styles.infoText}>
+            🎵 Professional Music Generation with Suno AI
+          </Text>
+          <Text style={styles.infoText}>
+            {kieApiKey ? 
+              'Connected to KIE.ai! Generate professional music with Suno AI technology!' :
+              'Add EXPO_PUBLIC_KIE_API_KEY to .env for real Suno AI music generation'
+            }
+          </Text>
+          <Text style={styles.infoTextSmall}>
+            {kieApiKey ? '🎵 Suno AI professional music generation active' : '📝 Demo mode with AI descriptions'}
+          </Text>
+        </View>
       </ScrollView>
     </>
   );
@@ -1078,167 +1410,150 @@ This track would be generated using Suno AI's professional music generation tech
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
-    padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   backButtonContainer: {
-    marginTop: 10,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 5,
+    backgroundColor: '#f5f5f5',
   },
   backButtonStyle: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: '#e0e7ff',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
     borderRadius: 8,
     alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   backButtonText: {
-    marginLeft: 5,
     color: '#6366f1',
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   header: {
+    backgroundColor: '#6366f1',
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: 'white',
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e0e7ff',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
   },
   statusDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 5,
+    marginRight: 8,
   },
   statusText: {
-    fontSize: 14,
-    color: '#444',
-    fontWeight: 'bold',
+    color: 'white',
+    fontSize: 12,
+    textTransform: 'capitalize',
   },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: 'white',
+    margin: 16,
     padding: 20,
-    marginBottom: 20,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    marginBottom: 16,
     color: '#333',
-    marginBottom: 15,
   },
   apiStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
   },
   apiStatusText: {
     marginLeft: 8,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  label: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 8,
-    fontWeight: 'bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 15,
-    backgroundColor: '#fdfdff',
-    color: '#333',
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#888',
-    marginBottom: 15,
-    fontStyle: 'italic',
+    fontSize: 14,
+    fontWeight: '500',
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    marginTop: 10,
+    padding: 14,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  connectButton: {
+    backgroundColor: '#10b981',
+  },
+  disconnectButton: {
+    backgroundColor: '#ef4444',
+  },
+  playButton: {
+    backgroundColor: '#8b5cf6',
+  },
+  stopButton: {
+    backgroundColor: '#f59e0b',
+  },
+  infoButton: {
+    backgroundColor: '#3b82f6',
+  },
+  creditsButton: {
+    backgroundColor: '#6b7280',
+    padding: 10,
+  },
+  checkButton: {
+    backgroundColor: '#10b981',
+    padding: 10,
+    marginTop: 8,
+  },
+  manualButton: {
+    backgroundColor: '#6b7280',
+    padding: 10,
+    marginTop: 8,
+  },
+  clearButton: {
+    backgroundColor: '#ef4444',
+    padding: 10,
+    marginTop: 8,
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  buttonIcon: {
-    marginRight: 5,
-  },
-  connectButton: {
-    backgroundColor: '#4CAF50',
-  },
-  disconnectButton: {
-    backgroundColor: '#F44336',
-  },
-  generateButton: {
-    backgroundColor: '#6366f1',
-  },
-  checkStatusButton: {
-    backgroundColor: '#007bff',
-  },
-  creditsButton: {
-    backgroundColor: '#8BC34A',
-    alignSelf: 'flex-start',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginTop: 10,
-  },
-  saveButton: {
-    backgroundColor: '#28a745',
-  },
-  infoButton: {
-    backgroundColor: '#17a2b8',
-  },
-  disabledButton: {
-    opacity: 0.6,
+    fontWeight: '600',
   },
   modeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    backgroundColor: '#e0e7ff',
-    borderRadius: 10,
-    padding: 5,
+    marginBottom: 16,
+  },
+  instrumentalContainer: {
+    flexDirection: 'row',
+    marginTop: 12,
   },
   modeButton: {
     flex: 1,
-    paddingVertical: 10,
+    padding: 12,
+    backgroundColor: '#f3f4f6',
+    marginHorizontal: 4,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -1246,95 +1561,121 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366f1',
   },
   modeButtonText: {
-    color: '#6366f1',
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
   },
   activeModeButtonText: {
     color: 'white',
   },
-  instrumentalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    backgroundColor: '#e0e7ff',
-    borderRadius: 10,
-    padding: 5,
-    marginTop: 10,
+  inputGroup: {
+    marginBottom: 16,
   },
-  modelSelection: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 15,
-    backgroundColor: '#e0e7ff',
-    borderRadius: 10,
-    padding: 5,
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
   },
-  modelButton: {
-    flex: 1,
-    paddingVertical: 10,
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
     borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 2,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
-  activeModelButton: {
+  numberInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  quickPrompt: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    minWidth: 100,
+  },
+  activePrompt: {
     backgroundColor: '#6366f1',
   },
-  modelButtonText: {
-    color: '#6366f1',
-    fontWeight: 'bold',
-    fontSize: 13,
+  quickPromptText: {
+    color: '#6b7280',
+    fontSize: 12,
+    textAlign: 'center',
   },
-  activeModelButtonText: {
+  activePromptText: {
     color: 'white',
   },
-  generatedMusicContainer: {
-    marginTop: 20,
-    padding: 20,
-    backgroundColor: '#e6f2ff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#b3d9ff',
-  },
-  generatedTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  generatedText: {
-    fontSize: 15,
-    color: '#555',
-    marginBottom: 5,
-  },
-  audioPlayer: {
-    marginTop: 15,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#b3d9ff',
-  },
-  playerControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  descriptionBox: {
-    backgroundColor: '#f0f8ff',
-    padding: 15,
+  generationInfo: {
+    backgroundColor: '#f9fafb',
+    padding: 16,
     borderRadius: 8,
-    marginTop: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#6366f1',
   },
-  descriptionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#444',
-  },
-  descriptionText: {
+  infoLabel: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  descriptionContainer: {
+    maxHeight: 200,
+    marginBottom: 8,
+  },
+  infoValueDescription: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 16,
+  },
+  callbackInfo: {
+    backgroundColor: '#f0f9ff',
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3b82f6',
+  },
+  callbackInfoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e40af',
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  callbackInfoText: {
+    fontSize: 12,
+    color: '#374151',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  infoText: {
+    color: '#6b7280',
+    fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  infoTextSmall: {
+    color: '#9ca3af',
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
