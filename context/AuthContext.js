@@ -86,6 +86,7 @@ const AuthProvider = ({ children }) => {
                 sessionStorage.setItem('justLoggedIn', 'true');
             }
             
+            console.log('AuthContext: Login complete, user state updated');
             return { success: true, user: responseUser };
             
         } catch (error) {

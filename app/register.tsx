@@ -60,14 +60,26 @@ export default function RegisterScreen() {
     
     setLoading(true);
     try {
+      // First, ensure no active session exists
+      try {
+        await account.deleteSession('current');
+      } catch (sessionError) {
+        // No active session to delete, which is fine
+        console.log('No active session to delete');
+      }
+      
+      console.log('Creating account...');
       const response = await account.create('unique()', email.toLowerCase().trim(), password, name.trim());
+      console.log('Account created successfully:', response);
       
       // Wait a moment for account to be fully ready
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Use the AuthContext login function instead of direct session creation
+      console.log('Attempting to log in...');
+      // Use the AuthContext login function
       await login({ email: email.toLowerCase().trim(), password });
       
+      console.log('Registration and login successful!');
       Alert.alert('Success', 'Registration completed successfully!');
       
     } catch (error: any) {
@@ -83,6 +95,15 @@ export default function RegisterScreen() {
           errorString.includes('already exists') ||
           errorString.includes('duplicate')) {
         errorMessage = 'Email is unavailable. Please try a different one.';
+      } else if (errorString.includes('session is active') || 
+                 errorString.includes('session is prohibited')) {
+        // If account was created but login failed due to session issues
+        errorMessage = 'Account created! Please go to login page to sign in.';
+        
+        // Redirect to login after a moment
+        setTimeout(() => {
+          router.replace('/login');
+        }, 2000);
       } else if (errorString.includes('Invalid `email` param') || 
                  errorString.includes('valid email address')) {
         errorMessage = 'Please enter a valid email address';
