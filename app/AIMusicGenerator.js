@@ -900,7 +900,7 @@ This track would be generated using Suno AI's professional music generation tech
     <StatusBar barStyle="light-content" backgroundColor="#6366f1" />
 
     <ScrollView style={styles.container}>
-      {/* Updated Back Button with SafeAreaView */}
+      {/* Back Button */}
       <SafeAreaView edges={['top']} style={{ backgroundColor: '#f5f5f5' }}>
         <View style={styles.backButtonContainer}>
           <TouchableOpacity
@@ -913,500 +913,375 @@ This track would be generated using Suno AI's professional music generation tech
         </View>
       </SafeAreaView>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>KIE.ai Suno Music</Text>
-          <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
-            <Text style={styles.statusText}>{connectionStatus}</Text>
-          </View>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Create Music</Text>
+      </View>
 
-        {/* API Status */}
+      {!kieApiKey && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>API Status</Text>
-          <View style={styles.apiStatus}>
-            <Ionicons
-              name={kieApiKey ? "checkmark-circle" : "alert-circle"}
-              size={20}
-              color={kieApiKey ? "#4CAF50" : "#FF9800"}
-            />
-            <Text style={[styles.apiStatusText, {
-              color: kieApiKey ? "#4CAF50" : "#FF9800"
-            }]}>
-              {kieApiKey ? 'KIE.ai Suno Ready - Professional Music Generation!' : 'Demo Mode - Add API Key for Real Suno AI'}
+          <Text style={styles.sectionTitle}>Get Started</Text>
+          <TouchableOpacity style={[styles.button, styles.infoButton]} onPress={openKieGuide}>
+            <Ionicons name="information-circle" size={20} color="white" style={styles.buttonIcon} />
+            <Text style={styles.buttonText}>Get KIE.ai API Key for Real Music</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Mode Selection */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Generation Mode</Text>
+
+        <View style={styles.modeContainer}>
+          <TouchableOpacity
+            style={[styles.modeButton, !customMode && styles.activeModeButton]}
+            onPress={() => setCustomMode(false)}
+            disabled={isLoading}
+          >
+            <Text style={[styles.modeButtonText, !customMode && styles.activeModeButtonText]}>
+              Simple Mode
             </Text>
-          </View>
-
-          {geminiApiKey && (
-            <View style={[styles.apiStatus, { marginTop: 8 }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-              <Text style={[styles.apiStatusText, { color: "#4CAF50" }]}>
-                Gemini AI Enhanced Descriptions
-              </Text>
-            </View>
-          )}
-
-          {kieApiKey && (
-            <TouchableOpacity style={[styles.button, styles.creditsButton]} onPress={checkCredits}>
-              <Ionicons name="card" size={16} color="white" style={styles.buttonIcon} />
-              <Text style={[styles.buttonText, { fontSize: 14 }]}>Check Credits</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Connection Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connection</Text>
-          <TouchableOpacity
-            style={[styles.button, isConnected ? styles.disconnectButton : styles.connectButton]}
-            onPress={isConnected ? disconnect : connectToAPI}
-            disabled={isLoading && !isPlaying}
-          >
-            {isLoading && !isPlaying ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <Ionicons
-                  name={isConnected ? "close-circle" : "wifi"}
-                  size={20}
-                  color="white"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>
-                  {isConnected ? 'Disconnect' : 'Connect to KIE.ai Suno'}
-                </Text>
-              </>
-            )}
           </TouchableOpacity>
-
-          {!kieApiKey && (
-            <TouchableOpacity style={[styles.button, styles.infoButton]} onPress={openKieGuide}>
-              <Ionicons name="information-circle" size={20} color="white" style={styles.buttonIcon} />
-              <Text style={styles.buttonText}>Get KIE.ai API Key</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.modeButton, customMode && styles.activeModeButton]}
+            onPress={() => setCustomMode(true)}
+            disabled={isLoading}
+          >
+            <Text style={[styles.modeButtonText, customMode && styles.activeModeButtonText]}>
+              Custom Mode
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Mode Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Generation Mode</Text>
-
-          <View style={styles.modeContainer}>
+        {customMode && (
+          <View style={styles.instrumentalContainer}>
             <TouchableOpacity
-              style={[styles.modeButton, !customMode && styles.activeModeButton]}
-              onPress={() => setCustomMode(false)}
+              style={[styles.modeButton, instrumental && styles.activeModeButton]}
+              onPress={() => setInstrumental(true)}
               disabled={isLoading}
             >
-              <Text style={[styles.modeButtonText, !customMode && styles.activeModeButtonText]}>
-                Simple Mode
+              <Text style={[styles.modeButtonText, instrumental && styles.activeModeButtonText]}>
+                Instrumental
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeButton, customMode && styles.activeModeButton]}
-              onPress={() => setCustomMode(true)}
+              style={[styles.modeButton, !instrumental && styles.activeModeButton]}
+              onPress={() => setInstrumental(false)}
               disabled={isLoading}
             >
-              <Text style={[styles.modeButtonText, customMode && styles.activeModeButtonText]}>
-                Custom Mode
+              <Text style={[styles.modeButtonText, !instrumental && styles.activeModeButtonText]}>
+                With Lyrics
               </Text>
             </TouchableOpacity>
           </View>
-
-          {customMode && (
-            <View style={styles.instrumentalContainer}>
-              <TouchableOpacity
-                style={[styles.modeButton, instrumental && styles.activeModeButton]}
-                onPress={() => setInstrumental(true)}
-                disabled={isLoading}
-              >
-                <Text style={[styles.modeButtonText, instrumental && styles.activeModeButtonText]}>
-                  Instrumental
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modeButton, !instrumental && styles.activeModeButton]}
-                onPress={() => setInstrumental(false)}
-                disabled={isLoading}
-              >
-                <Text style={[styles.modeButtonText, !instrumental && styles.activeModeButtonText]}>
-                  With Lyrics
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Music Controls */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Music Generation</Text>
-
-          {/* Model Selection */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>AI Model</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {['V3_5', 'V4', 'V4_5'].map((modelName) => (
-                <TouchableOpacity
-                  key={modelName}
-                  style={[styles.quickPrompt, model === modelName && styles.activePrompt]}
-                  onPress={() => setModel(modelName)}
-                  disabled={isLoading}
-                >
-                  <Text style={[styles.quickPromptText, model === modelName && styles.activePromptText]}>
-                    {modelName}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {!customMode ? (
-            // Simple mode - only prompt
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Music Prompt (max 400 chars)</Text>
-              <TextInput
-                style={styles.textInput}
-                value={prompt}
-                onChangeText={setPrompt}
-                placeholder="Describe the music you want to create"
-                multiline={true}
-                numberOfLines={3}
-                maxLength={400}
-                editable={!isLoading}
-              />
-              <Text style={styles.charCount}>{prompt.length}/400</Text>
-            </View>
-          ) : (
-            // Custom mode - style, title, and optionally prompt
-            <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Style ({model === 'V4_5' ? 'max 1000' : 'max 200'} chars)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={style}
-                  onChangeText={setStyle}
-                  placeholder="electronic, energetic, upbeat"
-                  maxLength={model === 'V4_5' ? 1000 : 200}
-                  editable={!isLoading}
-                />
-                <Text style={styles.charCount}>{style.length}/{model === 'V4_5' ? 1000 : 200}</Text>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Title (max 80 chars)</Text>
-                <TextInput
-                  style={styles.numberInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="My Awesome Track"
-                  maxLength={80}
-                  editable={!isLoading}
-                />
-                <Text style={styles.charCount}>{title.length}/80</Text>
-              </View>
-
-              {!instrumental && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Lyrics Prompt ({model === 'V4_5' ? 'max 5000' : 'max 3000'} chars)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={prompt}
-                    onChangeText={setPrompt}
-                    placeholder="Lyrics or vocal description"
-                    multiline={true}
-                    numberOfLines={4}
-                    maxLength={model === 'V4_5' ? 5000 : 3000}
-                    editable={!isLoading}
-                  />
-                  <Text style={styles.charCount}>{prompt.length}/{model === 'V4_5' ? 5000 : 3000}</Text>
-                </View>
-              )}
-            </>
-          )}
-
-          <TouchableOpacity
-            style={[styles.button, isPlaying ? styles.stopButton : styles.playButton]}
-            onPress={isPlaying ? stopMusic : generateWithAutoMonitoring}
-            disabled={!isConnected || isLoading}
-          >
-            {isLoading ? (
-              <>
-                <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
-                <Text style={styles.buttonText}>
-                  {kieApiKey ? 'Auto-Generating...' : 'Generating Description...'}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Ionicons 
-                  name={isPlaying ? "stop" : (kieApiKey ? "musical-notes" : "document-text")} 
-                  size={20} 
-                  color="white" 
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.buttonText}>
-                  {isPlaying ? 'Stop Music' : 
-                   kieApiKey ? '🤖 Auto-Generate Music' : '📝 Generate Description'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* Fallback Manual Generation Button */}
-          {kieApiKey && (
-            <TouchableOpacity
-              style={[styles.button, styles.manualButton]}
-              onPress={generateRealMusic}
-              disabled={!isConnected || isLoading}
-            >
-              <Ionicons name="construct" size={16} color="white" style={styles.buttonIcon} />
-              <Text style={[styles.buttonText, { fontSize: 14 }]}>Manual Generation (Old Method)</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Manual Result Input Button */}
-          <TouchableOpacity
-            style={[styles.button, styles.checkButton]}
-            onPress={handleManualResultInput}
-          >
-            <Ionicons name="add-circle" size={16} color="white" style={styles.buttonIcon} />
-            <Text style={[styles.buttonText, { fontSize: 14 }]}>Add Manual Result</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Generation Status */}
-        {generatedMusic && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Generated Music</Text>
-            <View style={styles.generationInfo}>
-              <Text style={styles.infoLabel}>Mode:</Text>
-              <Text style={styles.infoValue}>
-                {generatedMusic.customMode ? 'Custom' : 'Simple'} - {generatedMusic.instrumental ? 'Instrumental' : 'With Lyrics'}
-              </Text>
-
-              <Text style={styles.infoLabel}>Model:</Text>
-              <Text style={styles.infoValue}>{generatedMusic.model}</Text>
-
-              {generatedMusic.customMode && (
-                <>
-                  <Text style={styles.infoLabel}>Style:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.style}</Text>
-                  
-                  <Text style={styles.infoLabel}>Title:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.title}</Text>
-                </>
-              )}
-
-              {(!generatedMusic.customMode || !generatedMusic.instrumental) && (
-                <>
-                  <Text style={styles.infoLabel}>Prompt:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.prompt}</Text>
-                </>
-              )}
-              
-              <Text style={styles.infoLabel}>Status:</Text>
-              <Text style={[styles.infoValue, { 
-                color: generatedMusic.status.includes('real Suno AI music') ? '#8b5cf6' : 
-                      generatedMusic.status.includes('demo') ? '#FF9800' : 
-                      generatedMusic.status.includes('generating') || generatedMusic.status.includes('callback') ? '#f59e0b' : '#4CAF50' 
-              }]}>
-                {generatedMusic.status}
-              </Text>
-              
-              {generatedMusic.taskId && (
-                <>
-                  <Text style={styles.infoLabel}>Task ID:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.taskId}</Text>
-                  
-                  {generatedMusic.webhookUrl && (
-                    <>
-                      <Text style={styles.infoLabel}>Webhook URL:</Text>
-                      <Text style={[styles.infoValue, { color: '#3b82f6', fontSize: 12 }]}>
-                        {generatedMusic.webhookUrl}
-                      </Text>
-                      <Text style={[styles.infoValue, { fontStyle: 'italic', fontSize: 12 }]}>
-                        ↗ Check this URL for results when generation completes
-                      </Text>
-                    </>
-                  )}
-                  
-                  <TouchableOpacity 
-                    style={[styles.button, styles.checkButton]} 
-                    onPress={() => checkTaskStatus(generatedMusic.taskId)}
-                    disabled={isCheckingStatus}
-                  >
-                    {isCheckingStatus ? (
-                      <ActivityIndicator color="white" size="small" />
-                    ) : (
-                      <>
-                        <Ionicons name="information-circle" size={16} color="white" style={styles.buttonIcon} />
-                        <Text style={[styles.buttonText, { fontSize: 14 }]}>About Callback System</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </>
-              )}
-              
-              {generatedMusic.title && generatedMusic.audioUrl && (
-                <>
-                  <Text style={styles.infoLabel}>Track Title:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.title}</Text>
-                </>
-              )}
-
-              {generatedMusic.tags && (
-                <>
-                  <Text style={styles.infoLabel}>Tags:</Text>
-                  <Text style={styles.infoValue}>{generatedMusic.tags}</Text>
-                </>
-              )}
-
-              {generatedMusic.duration && (
-                <>
-                  <Text style={styles.infoLabel}>Duration:</Text>
-                  <Text style={styles.infoValue}>{Math.round(generatedMusic.duration)}s</Text>
-                </>
-              )}
-
-              {generatedMusic.totalTracks && (
-                <>
-                  <Text style={styles.infoLabel}>Generated Tracks:</Text>
-                  <Text style={styles.infoValue}>
-                    {generatedMusic.totalTracks} variations (playing track {generatedMusic.currentTrack})
-                  </Text>
-                </>
-              )}
-              
-              {generatedMusic.audioUrl && (
-                <>
-                  <Text style={styles.infoLabel}>Suno AI Audio:</Text>
-                  <Text style={[styles.infoValue, { color: '#4CAF50' }]}>✅ Professional Quality Generated</Text>
-                </>
-              )}
-              
-              {generatedMusic.description && (
-                <>
-                  <Text style={styles.infoLabel}>AI Description:</Text>
-                  <ScrollView style={styles.descriptionContainer} nestedScrollEnabled>
-                    <Text style={styles.infoValueDescription}>{generatedMusic.description}</Text>
-                  </ScrollView>
-                </>
-              )}
-              
-              {generatedMusic.endTime && (
-                <>
-                  <Text style={styles.infoLabel}>Generation Time:</Text>
-                  <Text style={styles.infoValue}>
-                    {formatDuration(generatedMusic.startTime, generatedMusic.endTime)}
-                  </Text>
-                </>
-              )}
-            </View>
-          </View>
         )}
+      </View>
 
-        {/* How KIE.ai Works */}
-        {kieApiKey && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>How KIE.ai Works</Text>
-            <View style={styles.callbackInfo}>
-              <Text style={styles.callbackInfoTitle}>🔄 Callback System</Text>
-              <Text style={styles.callbackInfoText}>
-                KIE.ai uses callbacks, not polling. When music generation completes, results are sent to your callback URL.
-              </Text>
-              
-              <Text style={styles.callbackInfoTitle}>⏱️ Generation Time</Text>
-              <Text style={styles.callbackInfoText}>
-                Professional music generation typically takes 2-5 minutes depending on complexity and server load.
-              </Text>
-              
-              <Text style={styles.callbackInfoTitle}>🎵 What You Get</Text>
-              <Text style={styles.callbackInfoText}>
-                • High-quality audio files{'\n'}• Professional composition{'\n'}• Multiple track variations{'\n'}• Timestamped lyrics (if applicable)
-              </Text>
-              
-              <Text style={styles.callbackInfoTitle}>🔧 For Production</Text>
-              <Text style={styles.callbackInfoText}>
-                Set up a webhook endpoint to automatically receive and process generated music when it's ready.
-              </Text>
-            </View>
-          </View>
-        )}
+      {/* Music Controls */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Music Generation</Text>
 
-        {/* Quick Prompts */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Prompts</Text>
+        {/* Model Selection */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>AI Model</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {[
-              'upbeat electronic dance music', 
-              'calm ambient soundscape', 
-              'energetic rock anthem', 
-              'smooth jazz with piano', 
-              'epic orchestral cinematic',
-              'lo-fi hip hop beats',
-              'acoustic folk melody',
-              'synthwave retro vibes'
-            ].map((quickPrompt) => (
+            {['V3_5', 'V4', 'V4_5'].map((modelName) => (
               <TouchableOpacity
-                key={quickPrompt}
-                style={[styles.quickPrompt, prompt === quickPrompt && styles.activePrompt]}
-                onPress={() => setPrompt(quickPrompt)}
+                key={modelName}
+                style={[styles.quickPrompt, model === modelName && styles.activePrompt]}
+                onPress={() => setModel(modelName)}
                 disabled={isLoading}
               >
-                <Text style={[styles.quickPromptText, prompt === quickPrompt && styles.activePromptText]}>
-                  {quickPrompt}
+                <Text style={[styles.quickPromptText, model === modelName && styles.activePromptText]}>
+                  {modelName}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Quick Styles (for custom mode) */}
-        {customMode && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Quick Styles</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {[
-                'electronic, energetic, upbeat',
-                'acoustic, calm, peaceful',
-                'rock, powerful, driving',
-                'jazz, smooth, sophisticated', 
-                'classical, elegant, dramatic',
-                'ambient, atmospheric, ethereal',
-                'hip-hop, rhythmic, modern',
-                'folk, organic, heartfelt'
-              ].map((quickStyle) => (
-                <TouchableOpacity
-                  key={quickStyle}
-                  style={[styles.quickPrompt, style === quickStyle && styles.activePrompt]}
-                  onPress={() => setStyle(quickStyle)}
-                  disabled={isLoading}
-                >
-                  <Text style={[styles.quickPromptText, style === quickStyle && styles.activePromptText]}>
-                    {quickStyle}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+        {!customMode ? (
+          // Simple mode - only prompt
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Music Prompt (max 400 chars)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={prompt}
+              onChangeText={setPrompt}
+              placeholder="Describe the music you want to create"
+              multiline={true}
+              numberOfLines={3}
+              maxLength={400}
+              editable={!isLoading}
+            />
+            <Text style={styles.charCount}>{prompt.length}/400</Text>
           </View>
+        ) : (
+          // Custom mode - style, title, and optionally prompt
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Style ({model === 'V4_5' ? 'max 1000' : 'max 200'} chars)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={style}
+                onChangeText={setStyle}
+                placeholder="electronic, energetic, upbeat"
+                maxLength={model === 'V4_5' ? 1000 : 200}
+                editable={!isLoading}
+              />
+              <Text style={styles.charCount}>{style.length}/{model === 'V4_5' ? 1000 : 200}</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Title (max 80 chars)</Text>
+              <TextInput
+                style={styles.numberInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="My Awesome Track"
+                maxLength={80}
+                editable={!isLoading}
+              />
+              <Text style={styles.charCount}>{title.length}/80</Text>
+            </View>
+
+            {!instrumental && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Lyrics Prompt ({model === 'V4_5' ? 'max 5000' : 'max 3000'} chars)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={prompt}
+                  onChangeText={setPrompt}
+                  placeholder="Lyrics or vocal description"
+                  multiline={true}
+                  numberOfLines={4}
+                  maxLength={model === 'V4_5' ? 5000 : 3000}
+                  editable={!isLoading}
+                />
+                <Text style={styles.charCount}>{prompt.length}/{model === 'V4_5' ? 5000 : 3000}</Text>
+              </View>
+            )}
+          </>
         )}
 
-        {/* Info */}
+        <TouchableOpacity
+          style={[styles.button, isPlaying ? styles.stopButton : styles.playButton]}
+          onPress={isPlaying ? stopMusic : generateWithAutoMonitoring}
+          disabled={!isConnected || isLoading}
+        >
+          {isLoading ? (
+            <>
+              <ActivityIndicator color="white" size="small" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>
+                {kieApiKey ? 'Auto-Generating...' : 'Generating Description...'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons 
+                name={isPlaying ? "stop" : (kieApiKey ? "musical-notes" : "document-text")} 
+                size={20} 
+                color="white" 
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.buttonText}>
+                {isPlaying ? 'Stop Music' : 
+                kieApiKey ? '🤖 Auto-Generate Music' : '📝 Generate Description'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Generation Status */}
+      {generatedMusic && (
         <View style={styles.section}>
-          <Text style={styles.infoText}>
-            🎵 Professional Music Generation with Suno AI
-          </Text>
-          <Text style={styles.infoText}>
-            {kieApiKey ? 
-              'Connected to KIE.ai! Generate professional music with Suno AI technology!' :
-              'Add EXPO_PUBLIC_KIE_API_KEY to .env for real Suno AI music generation'
-            }
-          </Text>
-          <Text style={styles.infoTextSmall}>
-            {kieApiKey ? '🎵 Suno AI professional music generation active' : '📝 Demo mode with AI descriptions'}
-          </Text>
+          <Text style={styles.sectionTitle}>Generated Music</Text>
+          <View style={styles.generationInfo}>
+            <Text style={styles.infoLabel}>Mode:</Text>
+            <Text style={styles.infoValue}>
+              {generatedMusic.customMode ? 'Custom' : 'Simple'} - {generatedMusic.instrumental ? 'Instrumental' : 'With Lyrics'}
+            </Text>
+
+            <Text style={styles.infoLabel}>Model:</Text>
+            <Text style={styles.infoValue}>{generatedMusic.model}</Text>
+
+            {generatedMusic.customMode && (
+              <>
+                <Text style={styles.infoLabel}>Style:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.style}</Text>
+                
+                <Text style={styles.infoLabel}>Title:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.title}</Text>
+              </>
+            )}
+
+            {(!generatedMusic.customMode || !generatedMusic.instrumental) && (
+              <>
+                <Text style={styles.infoLabel}>Prompt:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.prompt}</Text>
+              </>
+            )}
+            
+            <Text style={styles.infoLabel}>Status:</Text>
+            <Text style={[styles.infoValue, { 
+              color: generatedMusic.status.includes('real Suno AI music') ? '#8b5cf6' : 
+                    generatedMusic.status.includes('demo') ? '#FF9800' : 
+                    generatedMusic.status.includes('generating') || generatedMusic.status.includes('callback') ? '#f59e0b' : '#4CAF50' 
+            }]}>
+              {generatedMusic.status}
+            </Text>
+            
+            {generatedMusic.taskId && (
+              <>
+                <Text style={styles.infoLabel}>Task ID:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.taskId}</Text>
+                
+                {generatedMusic.webhookUrl && (
+                  <>
+                    <Text style={styles.infoLabel}>Webhook URL:</Text>
+                    <Text style={[styles.infoValue, { color: '#3b82f6', fontSize: 12 }]}>
+                      {generatedMusic.webhookUrl}
+                    </Text>
+                    <Text style={[styles.infoValue, { fontStyle: 'italic', fontSize: 12 }]}>
+                      ↗ Check this URL for results when generation completes
+                    </Text>
+                  </>
+                )}
+                
+                <TouchableOpacity 
+                  style={[styles.button, styles.checkButton]} 
+                  onPress={() => checkTaskStatus(generatedMusic.taskId)}
+                  disabled={isCheckingStatus}
+                >
+                  {isCheckingStatus ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="information-circle" size={16} color="white" style={styles.buttonIcon} />
+                      <Text style={[styles.buttonText, { fontSize: 14 }]}>About Callback System</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+            
+            {generatedMusic.title && generatedMusic.audioUrl && (
+              <>
+                <Text style={styles.infoLabel}>Track Title:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.title}</Text>
+              </>
+            )}
+
+            {generatedMusic.tags && (
+              <>
+                <Text style={styles.infoLabel}>Tags:</Text>
+                <Text style={styles.infoValue}>{generatedMusic.tags}</Text>
+              </>
+            )}
+
+            {generatedMusic.duration && (
+              <>
+                <Text style={styles.infoLabel}>Duration:</Text>
+                <Text style={styles.infoValue}>{Math.round(generatedMusic.duration)}s</Text>
+              </>
+            )}
+
+            {generatedMusic.totalTracks && (
+              <>
+                <Text style={styles.infoLabel}>Generated Tracks:</Text>
+                <Text style={styles.infoValue}>
+                  {generatedMusic.totalTracks} variations (playing track {generatedMusic.currentTrack})
+                </Text>
+              </>
+            )}
+            
+            {generatedMusic.audioUrl && (
+              <>
+                <Text style={styles.infoLabel}>Suno AI Audio:</Text>
+                <Text style={[styles.infoValue, { color: '#4CAF50' }]}>✅ Professional Quality Generated</Text>
+              </>
+            )}
+            
+            {generatedMusic.description && (
+              <>
+                <Text style={styles.infoLabel}>AI Description:</Text>
+                <ScrollView style={styles.descriptionContainer} nestedScrollEnabled>
+                  <Text style={styles.infoValueDescription}>{generatedMusic.description}</Text>
+                </ScrollView>
+              </>
+            )}
+            
+            {generatedMusic.endTime && (
+              <>
+                <Text style={styles.infoLabel}>Generation Time:</Text>
+                <Text style={styles.infoValue}>
+                  {formatDuration(generatedMusic.startTime, generatedMusic.endTime)}
+                </Text>
+              </>
+            )}
+          </View>
         </View>
-      </ScrollView>
-    </>
+      )}
+
+      {/* Quick Prompts */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Quick Prompts</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {[
+            'upbeat electronic dance music', 
+            'calm ambient soundscape', 
+            'energetic rock anthem', 
+            'smooth jazz with piano', 
+            'epic orchestral cinematic',
+            'lo-fi hip hop beats',
+            'acoustic folk melody',
+            'synthwave retro vibes'
+          ].map((quickPrompt) => (
+            <TouchableOpacity
+              key={quickPrompt}
+              style={[styles.quickPrompt, prompt === quickPrompt && styles.activePrompt]}
+              onPress={() => setPrompt(quickPrompt)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.quickPromptText, prompt === quickPrompt && styles.activePromptText]}>
+                {quickPrompt}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Quick Styles (for custom mode) */}
+      {customMode && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Styles</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {[
+              'electronic, energetic, upbeat',
+              'acoustic, calm, peaceful',
+              'rock, powerful, driving',
+              'jazz, smooth, sophisticated', 
+              'classical, elegant, dramatic',
+              'ambient, atmospheric, ethereal',
+              'hip-hop, rhythmic, modern',
+              'folk, organic, heartfelt'
+            ].map((quickStyle) => (
+              <TouchableOpacity
+                key={quickStyle}
+                style={[styles.quickPrompt, style === quickStyle && styles.activePrompt]}
+                onPress={() => setStyle(quickStyle)}
+                disabled={isLoading}
+              >
+                <Text style={[styles.quickPromptText, style === quickStyle && styles.activePromptText]}>
+                  {quickStyle}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </ScrollView>
+  </>
   );
 }
 
