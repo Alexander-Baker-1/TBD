@@ -7,49 +7,63 @@ import { useRouter } from 'expo-router'
 function Login() {
     const { login: authLogin } = useAuth();
     const router = useRouter();
-    const [email, setEmail] = useState(""); // Back to email for simplicity
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
     
     const handleSubmit = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please fill in all fields');
+            setError('Please fill in all fields');
             return;
         }
 
         setLoading(true);
+        setError(''); // Clear previous errors
+        
         try {
-            await authLogin({ email, password });
-            // Navigation will be handled by your auth context/layout
+            const result = await authLogin({ email: email.toLowerCase().trim(), password });
+            // If login is successful, loading will stay true until navigation happens
+            console.log('Login successful:', result);
         } catch (error: any) {
             console.error('Login error:', error);
             
-            // Handle specific error messages
-            let errorMessage = 'Something went wrong';
+            // Ensure we stop loading on error
+            setLoading(false);
             
-            if (error.message?.includes('Invalid `email` param')) {
+            // Handle specific error messages with user-friendly text
+            let errorMessage = 'Something went wrong. Please try again.';
+            
+            // More robust error checking
+            const errorString = error?.message || error?.toString() || '';
+            
+            if (errorString.includes('Invalid `email` param') || errorString.includes('valid email address')) {
                 errorMessage = 'Please enter a valid email address';
-            } else if (error.message?.includes('Invalid credentials')) {
-                errorMessage = 'Invalid email or password';
-            } else if (error.message?.includes('user_not_found')) {
-                errorMessage = 'No account found with this email';
-            } else if (error.message) {
-                errorMessage = error.message;
+            } else if (errorString.includes('Invalid `password` param') || errorString.includes('Password must be between')) {
+                errorMessage = 'Invalid credentials. Please check the email and password.';
+            } else if (errorString.includes('Invalid credentials')) {
+                errorMessage = 'Invalid credentials. Please check the email and password.';
+            } else if (errorString.includes('user_not_found')) {
+                errorMessage = 'No account found with this email address';
+            } else if (errorString.includes('User (role: guests) missing scope')) {
+                errorMessage = 'Account access restricted. Please contact support.';
+            } else if (errorString.includes('Rate limit')) {
+                errorMessage = 'Too many attempts. Please wait a moment and try again.';
+            } else if (errorString.includes('AppwriteException')) {
+                errorMessage = 'Invalid credentials. Please check the email and password.';
             }
             
-            Alert.alert('Login Failed', errorMessage, [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        // Clear the form and stay on login page
-                        setEmail('');
-                        setPassword('');
-                    }
-                }
-            ]);
-        } finally {
-            setLoading(false);
+            setError(errorMessage);
+            
+            // Prevent any potential crashes by ensuring we don't re-throw
+            console.log('Error handled gracefully');
         }
+        // Note: We don't use finally here because on successful login,
+        // we want to keep loading=true until navigation completes
+    };
+
+    const clearError = () => {
+        setError('');
     };
 
     return (
@@ -57,22 +71,36 @@ function Login() {
             <View style={styles.container}>
                 <View>
                     <Text style={styles.headline}>Log In</Text>
+                    
+                    {/* Error Message Display */}
+                    {error ? (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
+                    
                     <Text>Email:</Text>
                     <TextInput
                         placeholder="Enter your email..."
-                        style={styles.input}
+                        style={[styles.input, error && styles.inputError]}
                         value={email}
-                        onChangeText={(text) => setEmail(text)}
+                        onChangeText={(text) => {
+                            setEmail(text);
+                            clearError(); // Clear error when user starts typing
+                        }}
                         keyboardType="email-address"
                         autoCapitalize="none"
                         autoCorrect={false}
                     />
                     <Text>Password:</Text>
                     <TextInput
-                        style={styles.input}
+                        style={[styles.input, error && styles.inputError]}
                         placeholder="Password"
                         value={password}
-                        onChangeText={(text) => setPassword(text)}
+                        onChangeText={(text) => {
+                            setPassword(text);
+                            clearError(); // Clear error when user starts typing
+                        }}
                         secureTextEntry
                         autoCapitalize="none"
                     />
@@ -111,6 +139,20 @@ const styles = StyleSheet.create({
         fontStyle: "italic",
         fontSize: 72,
     },
+    errorContainer: {
+        backgroundColor: '#fee2e2',
+        borderColor: '#fecaca',
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+    },
+    errorText: {
+        color: '#dc2626',
+        fontSize: 14,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
     input: {
         borderWidth: 1,
         borderRadius: 10,
@@ -118,6 +160,10 @@ const styles = StyleSheet.create({
         marginTop: 10,
         marginBottom: 10,
         borderColor: "grey",
+    },
+    inputError: {
+        borderColor: '#dc2626',
+        backgroundColor: '#fef2f2',
     },
     button: {
         backgroundColor: "black",

@@ -7,29 +7,62 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useRouter, usePathname } from 'expo-router';
 
 function RootLayoutNav() {
-  const { session, user } = useAuth();
+  const { session, user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   
   useEffect(() => {
-    // Only redirect if we're not already on the right type of page
-    if (session === null && !pathname.includes('login') && !pathname.includes('register')) {
-      router.replace('/login');
+    // Don't do anything while auth is still loading
+    if (loading) return;
+    
+    console.log('Navigation check:', { 
+      user: !!user, 
+      session: !!session, 
+      pathname,
+      loading 
+    });
+    
+    // If user is logged in but on auth pages, redirect to main app
+    if (user && (pathname === '/login' || pathname === '/register')) {
+      console.log('User logged in, redirecting to main app');
+      router.replace('/');
+      return;
     }
-    // Don't force redirect when session exists - let the user stay where they are
-  }, [session, pathname]);
+    
+    // If user is not logged in and not on auth pages, redirect to login
+    if (!user && !pathname.includes('login') && !pathname.includes('register')) {
+      console.log('User not logged in, redirecting to login');
+      router.replace('/login');
+      return;
+    }
+    
+  }, [user, session, pathname, loading]);
   
-  // Use a key to force re-render when auth state changes
-  const navigationKey = session ? 'authenticated' : 'unauthenticated';
+  // Show loading while auth state is being determined
+  if (loading) {
+    return (
+      <Stack screenOptions={{headerShown: false}}>
+        <Stack.Screen name="loading" />
+      </Stack>
+    );
+  }
+  
+  // Use user state instead of session for more reliable auth checking
+  const isAuthenticated = !!user;
+  const navigationKey = isAuthenticated ? 'authenticated' : 'unauthenticated';
   
   return (
     <Stack key={navigationKey} screenOptions={{headerShown: false}}>
-      {session ? (
-        <Stack.Screen name="(pages)" />
+      {isAuthenticated ? (
+        <>
+          <Stack.Screen name="(pages)" />
+        </>
       ) : (
-        <Stack.Screen name="login" />
+        <>
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+        </>
       )}
-      <Stack.Screen name="register" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

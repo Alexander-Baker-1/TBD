@@ -13,7 +13,7 @@ const AuthContext = createContext({
 });
 
 const AuthProvider = ({ children }) => {
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true) // This is for initial app load only
     const [session, setSession] = useState(null)
     const [user, setUser] = useState(null)
     const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -49,7 +49,7 @@ const AuthProvider = ({ children }) => {
     }
 
     const register = async ({ email, password, name }) => {
-        setLoading(true);
+        // Don't set global loading for register
         try {
             const response = await account.create(
                 'unique()',
@@ -60,42 +60,53 @@ const AuthProvider = ({ children }) => {
             
             return { success: true, user: response };
         } catch (error) {
+            console.error('Registration error in AuthContext:', error);
             throw error;
-        } finally {
-            setLoading(false);
         }
     };
 
     const login = async ({ email, password }) => {
-        setLoading(true);
+        // FIXED: Don't set global loading during login attempts
         try {
+            console.log('AuthContext: Attempting login...');
+            
             const responseSession = await account.createEmailPasswordSession(
                 email,
                 password
             );
             
+            console.log('AuthContext: Session created successfully');
             setSession(responseSession);
             
             const responseUser = await account.get();
+            console.log('AuthContext: User data retrieved');
             setUser(responseUser);
             
             if (typeof window !== 'undefined' && window.sessionStorage) {
                 sessionStorage.setItem('justLoggedIn', 'true');
             }
             
+            console.log('AuthContext: Login complete, user state updated');
+            return { success: true, user: responseUser };
+            
         } catch (error) {
+            console.error('AuthContext login error:', error);
+            
+            // Clean up on error
             setSession(null);
             setUser(null);
+            
+            // Re-throw error so login component can handle it
             throw error;
         }
-        setLoading(false);
     };
 
     const logout = async () => {
-        setLoading(true);
+        setLoading(true); // This is OK for logout since we're leaving
         try {
             await account.deleteSession('current');
         } catch (error) {
+            console.error('Logout error:', error);
             // Continue with logout even if server call fails
         }
         
